@@ -1,0 +1,15 @@
+name: Publish to ClawHub
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    uses: openclaw/clawhub/.github/workflows/skill-publish.yml@main
+    with:
+      owner: william22820785-cmyk
+      dry_run: false
+    secrets:
+      clawhub_token: ${{ secrets.CLAWHUB_TOKEN }}
