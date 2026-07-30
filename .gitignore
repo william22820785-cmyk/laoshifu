@@ -1,0 +1,4 @@
+*.pyc
+__pycache__/
+*.skill
+tests/audit_report_*.md

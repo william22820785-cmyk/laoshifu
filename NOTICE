@@ -1,0 +1,55 @@
+laoshifu v2.0
+Copyright (c) 2026 dzcmemory-web
+
+================================================================================
+本项目包含以下第三方开源组件
+This product includes third-party open-source components.
+================================================================================
+
+1. Yiqi-BaZi-ZiWei (易奇八字紫微排盘系统 / BZZW)
+   ------------------------------------------------------------
+   上游 / Upstream: https://github.com/fdxuyq/Yiqi-BaZi-ZiWei
+   位置 / Location: scripts/node_modules/@aceworld/bazi-algorithm/ and ziwei-algorithm/
+   说明 / Description:
+     紫微斗数与八字的核心排盘算法（四柱、十神、星运、纳音、大运、流年、
+     十二宫、生年四化、大限等）来自该上游项目，经少量改造后内置（vendored）
+     于本 Skill 的离线运行时中。
+     The core charting algorithms (four pillars, ten gods, na-yin, luck cycles,
+     twelve palaces, birth-year transformations, major limits, etc.) are
+     derived from this upstream project and vendored, with minor edits, into
+     the Skill's offline runtime.
+   许可 / License: MIT (per upstream project README)
+
+2. lunar-typescript
+   ------------------------------------------------------------
+   使用方式 / Usage: npm dependency (calculator/package.json)
+   说明 / Description: 农历 / 节气 / 干支换算底层库。
+   许可 / License: MIT
+
+3. humanizer
+   ------------------------------------------------------------
+   上游 / Upstream: https://github.com/blader/humanizer
+   Copyright (c) 2025 Siqi Chen
+   使用方式 / Usage: references/voice-and-dialogue.md 中的反 AI 写作规则参考。
+   说明 / Description: 仅吸收适合中文命理会谈的抽象方法，未内置完整 Skill。
+   许可 / License: MIT
+
+4. mingyu-core
+   ------------------------------------------------------------
+   上游 / Upstream: https://github.com/Brhiza/mingyu
+   位置 / Location: scripts/node_modules/mingyu-core/
+   说明 / Description: 京房八宫纳甲六爻、逐爻状态、世应、伏神与旺衰底层实现。
+   许可 / License: MIT
+
+5. tyme4ts
+   ------------------------------------------------------------
+   上游 / Upstream: https://github.com/6tail/tyme4ts
+   位置 / Location: scripts/node_modules/tyme4ts/
+   说明 / Description: mingyu-core 使用的农历、干支与节气换算依赖。
+   许可 / License: MIT
+
+================================================================================
+本项目自有部分（输入校验、证据链断语、报告校验与模板）以 MIT 协议发布，
+见 LICENSE 文件。ziwei.my 仅作为公开学习资料来源，未复制或内置其文章正文。
+The original parts of this project are released under the MIT License (see LICENSE).
+================================================================================
