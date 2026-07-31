@@ -378,14 +378,14 @@ def main():
     # 解析报数
     numbers = None
     if args.method == 'numbers' and args.numbers:
-    try:
-        numbers = [int(n.strip()) for n in args.numbers.split(",")]
-        if len(numbers) != 3:
-            print("错误: 必须输入恰好 3 个正整数", file=sys.stderr)
+        try:
+            numbers = [int(n.strip()) for n in args.numbers.split(",")]
+            if len(numbers) != 3:
+                print("错误: 必须输入恰好 3 个正整数", file=sys.stderr)
+                sys.exit(1)
+        except ValueError:
+            print("错误: 参数格式不正确，请输入 3 个正整数，用逗号分隔", file=sys.stderr)
             sys.exit(1)
-    except ValueError:
-        print("错误: 参数格式不正确，请输入 3 个正整数，用逗号分隔", file=sys.stderr)
-        sys.exit(1)
 
     # 1. 六爻排盘
     liuyao = paipan_liuyao(dt, method=args.method, numbers=numbers)
