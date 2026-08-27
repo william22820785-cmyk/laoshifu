@@ -24,10 +24,17 @@ function getArg(name) {
 
 const fusionPath = getArg('--fusion');
 const responsePath = getArg('--response');
+const roundMetaPath = getArg('--roundMeta');
 
 if (!fusionPath) {
-  console.error('用法: node validate-liuyao-qimen-consultation.cjs --fusion=fusion.json [--response=response.txt]');
+  console.error('用法: node validate-liuyao-qimen-consultation.cjs --fusion=fusion.json --response=response.txt [--roundMeta=meta.json]');
   process.exit(2);
+}
+
+// V5: 强制要求 --response（词表要生效，答复必须被扫描；缺失即 FAIL，不再静默跳过）
+if (!responsePath) {
+  console.error('[FAIL] 缺少 --response 参数。V5 起强制扫描答复文本，请传入 response.txt');
+  process.exit(1);
 }
 
 // ─── 加载数据 ───
@@ -160,7 +167,7 @@ for (const term of forbiddenInUserFields) {
   }
 }
 
-// ─── 6. Response 额外检查 ───
+// ─── 6. Response 额外检查（V5 升级版）───
 if (response) {
   for (const term of forbiddenInUserFields) {
     if (response.includes(term)) {
@@ -171,6 +178,66 @@ if (response) {
       }
     }
   }
+
+  // V7 新增：江湖化负向红线（仅保留机器能可靠判定的高置信查杀项）
+  const blackTalk = ['金点', '空子', '攒尖儿', '戗盘', '春点', '切口', '尖头儿', '腥盘'];
+  // 假定现场：收窄为精确的现场动作短语（避免“坐我这趟船”比喻、“他进我门”叙事误杀）
+  const sceneWords = ['坐下吧', '坐下来吧', '来我这坐', '坐我这来了', '进我这屋', '伸过手', '点炷香', '看你脸上', '观你', '摊前', '摊上', '坐下来了'];
+  const brag = ['相信我', '我见得多了', '我只会看盘说话', '我从来不骗人', '我这半辈子见过', '我跟那些不一样'];
+  const ruleSpoken = ['卦不二起', '心不诚，我不给你乱断', '义不占财', '我不给你乱断', '耍嘴皮子，我不干那事'];
+
+  // 读取 roundMeta：{ isFirm:bool }（可选覆盖）
+  let rmeta = null;
+  if (roundMetaPath) {
+    try { rmeta = JSON.parse(fs.readFileSync(roundMetaPath, 'utf-8')); }
+    catch (e) { errors.push(`无法读取 roundMeta: ${e.message}`); }
+  }
+  // V7 修 autoFirm：复用真双高校验（same + 双 high + 无反证），不再裸读 delivery==='firm'
+  const autoFirm = (fusion.conclusions || []).some(c =>
+    fusion.agreement?.overall === 'same' &&
+    c.liuyao_level === 'high' && c.qimen_level === 'high' &&
+    (!c.counter_evidence_ids || c.counter_evidence_ids.length === 0)
+  );
+  const isFirm = rmeta ? (rmeta.isFirm === true) : autoFirm;
+
+  blackTalk.forEach(t => { if (response.includes(t)) errors.push(`江湖黑话: "${t}"`); });
+  sceneWords.forEach(t => { if (response.includes(t)) errors.push(`假定现场: "${t}"`); });
+  brag.forEach(t => { if (response.includes(t)) errors.push(`自报资历/拍胸脯: "${t}"`); });
+  ruleSpoken.forEach(t => { if (response.includes(t)) errors.push(`行规说破: "${t}"`); });
+
+  // V9：双高轮不变量（审官+验师V8一致修正）——从“正向凑三件套”改为“弱化词反向否决 + 宽松正向”
+  // 建议句豁免：句中含建议标记词即豁免整句（不只测句首）
+  if (isFirm && response) {
+    const adviceMarks = ['你应该', '你要', '你最好', '我劝你', '建议你', '你得', '你先', '你该', '你千万', '你切记', '你别'];
+    const sentences = response.split(/[。！？；\n]/).map(s => s.trim()).filter(s => s.length > 0);
+    const verdictText = sentences.filter(s => !adviceMarks.some(m => s.includes(m))).join(' ');
+    if (verdictText) {
+      // ① 弱化词反向否决：命中任何弱化/退让词即 FAIL（含糊即破功，无论 skeleton 多完整）
+      const weaken = ['可能', '大概', '多半', '应该', '也许', '或许', '八成', '七成', '有戏', '稳了', '把握', '差不多', '十之八九', '悬', '难说', '不一定', '不好说', '保不齐', '没准儿', '问题不大', '八九不离十', '十拿九稳'];
+      const hitWeak = weaken.filter(w => verdictText.includes(w));
+      if (hitWeak.length > 0) {
+        errors.push(`双高轮不变量: 断语含弱化词 "${hitWeak.join('/')}"，双高轮不得含糊`);
+      } else {
+        // ② 宽松正向：断言 + 线索（时间/对象）至少两类命中，允许隐含（对象可从问询上下文推断）
+        const firmVerbs = ['一定', '必', '能', '会', '可定', '必然', '稳', '准成', '成定了', '板上钉钉', '成', '签', '点头', '走', '调', '遇', '定'];
+        const firmTime = ['今年', '明年', '月底', '下月', '这月', '秋天', '春天', '年底', '三月', '六月', '九月', '十月', '开春', '入秋', '立冬', '这周', '下周', '三个月', '半年', '三天内', '月底前'];
+        const firmObject = ['合同', '款', '那桩事', '这门亲', '这个项目', '这笔生意', '这份差事', '那个位置', '你那位', '这份工作', '这单', '这个坎', '这份运', '对方', '甲方', '他', '她', '那边', '这件事', '那件事', '这事', '这桩'];
+        const hasVerb = firmVerbs.some(w => verdictText.includes(w));
+        const hasTime = firmTime.some(w => verdictText.includes(w));
+        const hasObject = firmObject.some(w => verdictText.includes(w));
+        const hitCnt = [hasVerb, hasTime, hasObject].filter(Boolean).length;
+        if (hitCnt < 2) {
+          const miss = [];
+          if (!hasVerb) miss.push('明确断言');
+          if (!hasTime) miss.push('时间');
+          if (!hasObject) miss.push('对象');
+          errors.push(`双高轮不变量: 断语须含 明确断言+线索(时间/对象) 至少两项（当前缺 ${miss.join('/')}），含糊或线索不足`);
+        }
+      }
+    }
+  }
+
+  // 意象堆砌：全部交离线盲评（脚本不掺和，避免误杀满分句 + 每轮噪音）
 }
 
 // ─── 7. evidence_ids 存在性检查 ───

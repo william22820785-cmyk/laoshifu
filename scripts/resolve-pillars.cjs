@@ -67,9 +67,10 @@ function getDayGanZhi(year, month, day) {
   const targetDate = new Date(year, month - 1, day);
   const diffDays = Math.floor((targetDate - baseDate) / (1000 * 60 * 60 * 24));
   
-  // 1900-01-01 是甲戌日 (tg=0, dz=10)
+  // 权威基准：1900-01-01 = 甲戌日 (tg=0, dz=10)。
+  // 天干：diff%10（甲=0 正确）；地支：1900-01-01 应返回戌=10，故 diff=0 时 dz=10，即 (diff+10)%12。
   const tgIndex = ((diffDays % 10) + 10) % 10;
-  const dzIndex = ((diffDays % 12) + 12) % 12;
+  const dzIndex = ((diffDays + 10) % 12 + 12) % 12;
   
   return { gan: TIAN_GAN[tgIndex], zhi: DI_ZHI[dzIndex], tgIndex, dzIndex };
 }

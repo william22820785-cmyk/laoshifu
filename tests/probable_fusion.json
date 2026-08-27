@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "aceworld-liuyao-qimen-fusion.v2",
+  "stage": "reading",
+  "question": {
+    "text": "陈立被老板俞总带着去印尼协助前老板刘总（家具生意为主），此行能否谈成、是否最终会在刘总处长期工作、是否适合",
+    "category": "career",
+    "answerNeed": "outcome"
+  },
+  "methods": {
+    "liuyao": {
+      "本卦": "水地比",
+      "变卦": "坎为水",
+      "动爻": [
+        {
+          "爻位": 2,
+          "六亲": "父母",
+          "纳支": "巳",
+          "五行": "火"
+        }
+      ],
+      "世爻": {
+        "爻位": 3,
+        "六亲": "官鬼",
+        "纳支": "卯",
+        "五行": "木",
+        "六神": "腾蛇"
+      },
+      "应爻": {
+        "爻位": 6,
+        "六亲": "妻财",
+        "纳支": "子",
+        "五行": "水",
+        "六神": "青龙"
+      }
+    },
+    "qimen": {
+      "局数": "阴遁5局",
+      "节气": "立秋中元",
+      "值符": "天芮(落8宫)",
+      "值使": "死门(落3宫)",
+      "空亡": "辰、巳"
+    }
+  },
+  "agreement": {
+    "overall": "complementary",
+    "points": [
+      {
+        "dimension": "总体态势",
+        "verdict": "角度不同，有吉的压力，也有凶的转圜",
+        "delivery": "probable",
+        "detail": ""
+      }
+    ],
+    "conflicts": []
+  },
+  "conclusions": [
+    {
+      "id": "timing",
+      "appliesTo": "陈立被老板俞总带着去印尼协助前老板刘总（家具生意为主），此行能否谈成、是否最终会在刘总处长期工作、是否适合",
+      "verdict": "近期时机未到，事情有虚浮之象，急不得。等条件落定之后转机更明朗。",
+      "timing": "需等待条件落定",
+      "conditions": [
+        "保持耐心，不急于求成"
+      ],
+      "guidance": [
+        "静观其变，不要在这个阶段做重大决定"
+      ],
+      "delivery": "probable",
+      "liuyao_evidence_ids": [
+        "time_pattern"
+      ],
+      "qimen_evidence_ids": [
+        "time_gate"
+      ],
+      "counter_evidence_ids": [],
+      "liuyao_level": "medium",
+      "qimen_level": "medium",
+      "agreement": "same"
+    },
+    {
+      "id": "outcome",
+      "appliesTo": "陈立被老板俞总带着去印尼协助前老板刘总（家具生意为主），此行能否谈成、是否最终会在刘总处长期工作、是否适合",
+      "verdict": "这件事有点阻力，不是不成，是路不太顺。可能要等一等或者换一种方式。",
+      "timing": "可能要等上两三个月，中间会有一次反复",
+      "conditions": [
+        "不要在一棵树上吊死，多找几条路",
+        "听取身边有经验的人的建议"
+      ],
+      "guidance": [
+        "先稳住心态，不要因为一时不顺就否定自己",
+        "可以考虑调整方向或者降低预期"
+      ],
+      "delivery": "probable",
+      "liuyao_evidence_ids": [
+        "outcome_analysis"
+      ],
+      "qimen_evidence_ids": [
+        "outcome_analysis"
+      ],
+      "counter_evidence_ids": [],
+      "liuyao_level": "low",
+      "qimen_level": "low",
+      "agreement": "complementary"
+    }
+  ],
+  "diagram": "上坎下坤 水地比(坤宫)  之  上坎下坎 坎为水(坎宫)\n青龙     ▅▅  ▅▅ 妻财戊子水应                     → 妻财戊子水世                   \n玄武     ▅▅▅▅▅ 兄弟戊戌土                       → 兄弟戊戌土                    \n白虎     ▅▅  ▅▅ 子孙戊申金                      → 子孙戊申金                    \n腾蛇     ▅▅  ▅▅ 官鬼乙卯木世                     → 父母戊午火应                   \n勾陈     ▅▅  ▅▅ 父母乙巳火 X                    → 兄弟戊辰土 O                  \n朱雀     ▅▅  ▅▅ 兄弟乙未土                      → 官鬼戊寅木                    ",
+  "soulNote": "你要过的关不是有没有机会，而是愿不愿意离开已经不合身的位置。"
+}
