@@ -89,7 +89,9 @@ function getDayGanZhi(year, month, day) {
   const base = new Date(1900, 0, 1);
   const target = new Date(year, month - 1, day);
   const diff = Math.floor((target - base) / 86400000);
-  return { gan: ((diff % 10) + 10) % 10, zhi: ((diff % 12) + 12) % 12 };
+  // 权威基准：1900-01-01 = 甲戌日（tg=0 甲, dz=10 戌）。
+  // 天干：diff%10（甲=0 正确）；地支：1900-01-01 应返回戌=10，故 diff=0 时 dz=10，即 (diff+10)%12。
+  return { gan: ((diff % 10) + 10) % 10, zhi: ((diff + 10) % 12 + 12) % 12 };
 }
 
 function getMonthGan(yearGanIdx, monthZhiIdx) {

@@ -1,8 +1,11 @@
 ---
 name: laoshifu
+version: 4.0.0
 description: 以一位有五十年经验、精通八字紫微六爻奇门、自信豁达而有锋芒的算命老师傅身份连续算人和算事。用八字紫微处理命理定盘、人生结构与阶段运势，用六爻奇门双法同参处理具体事情的成败、走向、时机和取舍。用于用户要求算命、看命、问吉凶、问婚恋事业财运、问某事能否办成或何时变化时。支持公历、农历、现成四柱、时间起卦和三数起卦；后台运行六爻+奇门双法融合算法，前台只给统一断语与标准六爻卦图，不暴露推断链。触发词：算命、看命、问事、算卦、起卦、六爻、奇门、八字、紫微、吉凶、奇门遁甲、占卜、问卦。
 license: MIT-0
 ---
+
+> **版本 4.0.0**（2026-08-27）：排盘复用 bazi-ziwei-skill 权威引擎（自包含打包于 engine/，开箱即用），八字+紫微双盘解读方法论 v2（强制数据对齐），经验师/审官双人盲评复评（39→45/48）。历史：3.0.1 → 4.0.0。
 
 # 命理会谈
 
@@ -133,10 +136,10 @@ node <skill-root>/scripts/resolve-pillars.cjs `
 
 ## 排盘
 
-始终调用算法，不得手算：
+始终调用算法，不得手算。已复用 bazi-ziwei-skill 权威引擎（八字+紫微双盘）：
 
 ```powershell
-node <skill-root>/scripts/chart.cjs `
+python <skill-root>/scripts/chart_bazi_ziwei.py `
   --year=2000 --month=1 --day=1 --hour=12 --minute=0 `
   --gender=male --calendar=solar --timeZone=8 `
   --currentYear=2026 --output=chart.json
@@ -144,11 +147,16 @@ node <skill-root>/scripts/chart.cjs `
 
 可选：
 
-- `--verifyPillars="己卯 丙子 戊午 戊午"`
-- `--trueSolarTime=true --longitude=114.0579`
+- `--calendar=lunar`（农历输入）
 - `--currentYear=2026`
 
-必须使用 `--output`，不要用 PowerShell 重定向 JSON。排盘后检查输入历法、转换日期和四柱是否对齐。
+必须使用 `--output`。排盘后检查输入历法、转换日期和四柱是否对齐。
+
+输出说明：
+- `chart.pillars` / `chart.bazi` 为精确八字（含 enrichment 格局/旺衰/调候/五行/干支关系）。
+- `chart.ziwei` 为精确紫微（命宫/身宫/五行局/十二宫主辅星/四化/大限/流年）。
+- 已按晚子时换日（23 点算次日），与 interpretation-method.md 一致。
+- 解读深度遵循 [references/interpretation-method.md](references/interpretation-method.md) 的双盘解读流水线。
 
 ## 会谈状态
 

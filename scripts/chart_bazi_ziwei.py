@@ -16,9 +16,18 @@ chart_bazi_ziwei.py — 复用 bazi-ziwei-skill 的权威八字+紫微排盘，�
 """
 import sys, os, json, argparse, subprocess
 from datetime import datetime
+import os
 
-# bazi-ziwei-skill 的 run-chart.js 路径
-BAZI_ZIWEI_RUN = '/root/.openclaw/workspace/skills/bazi-ziwei-skill/calculator/dist/run-chart.js'
+# run-chart.js 路径解析：优先包内自包含引擎(engine/)，回退到开发环境 bazi-ziwei-skill
+_SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # skill 根目录
+BAZI_ZIWEI_RUN = os.path.join(_SKILL_ROOT, 'engine', 'calculator', 'dist', 'run-chart.js')
+if not os.path.exists(BAZI_ZIWEI_RUN):
+    # 开发环境回退：bazi-ziwei-skill（独立 skill）
+    _dev = '/root/.openclaw/workspace/skills/bazi-ziwei-skill/calculator/dist/run-chart.js'
+    if os.path.exists(_dev):
+        BAZI_ZIWEI_RUN = _dev
+    else:
+        raise RuntimeError('找不到 run-chart.js：包内 engine/ 与开发环境 bazi-ziwei-skill 均不存在')
 
 WU_XING = {'甲':'木','乙':'木','丙':'火','丁':'火','戊':'土',
            '己':'土','庚':'金','辛':'金','壬':'水','癸':'水'}
