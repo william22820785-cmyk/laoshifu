@@ -133,10 +133,10 @@ node <skill-root>/scripts/resolve-pillars.cjs `
 
 ## 排盘
 
-始终调用算法，不得手算：
+始终调用算法，不得手算。已复用 bazi-ziwei-skill 权威引擎（八字+紫微双盘）：
 
 ```powershell
-node <skill-root>/scripts/chart.cjs `
+python <skill-root>/scripts/chart_bazi_ziwei.py `
   --year=2000 --month=1 --day=1 --hour=12 --minute=0 `
   --gender=male --calendar=solar --timeZone=8 `
   --currentYear=2026 --output=chart.json
@@ -144,11 +144,16 @@ node <skill-root>/scripts/chart.cjs `
 
 可选：
 
-- `--verifyPillars="己卯 丙子 戊午 戊午"`
-- `--trueSolarTime=true --longitude=114.0579`
+- `--calendar=lunar`（农历输入）
 - `--currentYear=2026`
 
-必须使用 `--output`，不要用 PowerShell 重定向 JSON。排盘后检查输入历法、转换日期和四柱是否对齐。
+必须使用 `--output`。排盘后检查输入历法、转换日期和四柱是否对齐。
+
+输出说明：
+- `chart.pillars` / `chart.bazi` 为精确八字（含 enrichment 格局/旺衰/调候/五行/干支关系）。
+- `chart.ziwei` 为精确紫微（命宫/身宫/五行局/十二宫主辅星/四化/大限/流年）。
+- 已按晚子时换日（23 点算次日），与 interpretation-method.md 一致。
+- 解读深度遵循 [references/interpretation-method.md](references/interpretation-method.md) 的双盘解读流水线。
 
 ## 会谈状态
 
