@@ -1,16 +1,32 @@
 #!/usr/bin/env python3
-"""Regression tests for laoshifu V4.0.1 portability and Lichun boundary fixes."""
+"""Regression tests for laoshifu V4.0.1 portability and validator fixes."""
 from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
-NODE = os.environ.get("NODE") or "node"
+
+
+def node_command():
+    configured = os.environ.get("NODE") or os.environ.get("NODEJS")
+    candidates = [configured, shutil.which(configured) if configured else None,
+                  shutil.which("node"), shutil.which("nodejs"),
+                  "/usr/local/lib/python3.11/site-packages/playwright/driver/node",
+                  "/usr/local/lib/python3.11/site-packages/patchright/driver/node",
+                  "/usr/local/bin/node", "/usr/bin/node"]
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file() and os.access(candidate, os.X_OK):
+            return candidate
+    raise RuntimeError("Node.js runtime not found")
+
+
+NODE = node_command()
 
 
 def run(*args, cwd=None):
