@@ -43,7 +43,7 @@ function loadText(filepath) {
     console.error(`[FAIL] File not found: ${filepath}`);
     process.exit(1);
   }
-  return fs.readFileSync(filepath, 'utf8');
+  return fs.readFileSync(filepath, 'utf8').replace(/\r\n?/g, '\n');
 }
 
 // 黑盒禁止词（问询与答复都查）
@@ -195,24 +195,87 @@ function checkResponse(text, meta) {
 
 function validatePlan(chart, plan) {
   const issues = [];
-  if (!plan.delivery) {
-    issues.push('plan 缺少 delivery 字段');
-  } else if (!['direct', 'tentative', 'deferred'].includes(plan.delivery)) {
-    issues.push(`无效的 delivery 值: ${plan.delivery}`);
+  if (!plan || typeof plan !== 'object' || Array.isArray(plan)) {
+    issues.push('plan 必须是对象');
+    return issues;
   }
-  if (!chart.interpretation || !chart.interpretation.evidence) {
+  if (!chart.interpretation || !Array.isArray(chart.interpretation.evidence)) {
     issues.push('chart.json 缺少 interpretation.evidence');
     return issues;
   }
   const validEvidenceIds = new Set(chart.interpretation.evidence.map(e => e.id || e));
-  if (plan.evidence && Array.isArray(plan.evidence)) {
-    plan.evidence.forEach(id => {
-      if (!validEvidenceIds.has(id)) issues.push(`plan 引用了不存在的 evidence ID: ${id}`);
-    });
+  const validDeliveries = ['direct', 'firm', 'probable', 'tentative'];
+  const validLevels = ['high', 'medium', 'low', 'none'];
+
+  // delivery 按 schema 位于 conclusions[] 内；不再读取不存在的顶层 plan.delivery。
+  if ('delivery' in plan) {
+    issues.push('plan.delivery 已废弃；请把 delivery 放入 conclusions[]');
   }
+  if (!Array.isArray(plan.conclusions) || plan.conclusions.length < 1 || plan.conclusions.length > 4) {
+    issues.push('plan.conclusions 必须是 1-4 条数组');
+    return issues;
+  }
+
+  plan.conclusions.forEach((conclusion, index) => {
+    const label = `conclusions[${index}]`;
+    if (!conclusion || typeof conclusion !== 'object' || Array.isArray(conclusion)) {
+      issues.push(`${label} 必须是对象`);
+      return;
+    }
+    for (const key of ['id', 'verdict', 'agreement', 'bazi_level', 'ziwei_level', 'delivery']) {
+      if (typeof conclusion[key] !== 'string' || !conclusion[key].trim()) {
+        issues.push(`${label}.${key} 缺失或不是非空字符串`);
+      }
+    }
+    if (!validDeliveries.includes(conclusion.delivery)) {
+      issues.push(`${label}.delivery 无效: ${conclusion.delivery}`);
+    }
+    if (!validLevels.includes(conclusion.bazi_level)) {
+      issues.push(`${label}.bazi_level 无效: ${conclusion.bazi_level}`);
+    }
+    if (!validLevels.includes(conclusion.ziwei_level)) {
+      issues.push(`${label}.ziwei_level 无效: ${conclusion.ziwei_level}`);
+    }
+    if (!Array.isArray(conclusion.bazi_evidence_ids) || conclusion.bazi_evidence_ids.length < 1) {
+      issues.push(`${label}.bazi_evidence_ids 必须至少包含一个 evidence ID`);
+    } else {
+      conclusion.bazi_evidence_ids.forEach(id => {
+        if (!validEvidenceIds.has(id)) issues.push(`${label} 引用了不存在的 bazi evidence ID: ${id}`);
+      });
+    }
+    if (!Array.isArray(conclusion.ziwei_evidence_ids) || conclusion.ziwei_evidence_ids.length < 1) {
+      issues.push(`${label}.ziwei_evidence_ids 必须至少包含一个 evidence ID`);
+    } else {
+      conclusion.ziwei_evidence_ids.forEach(id => {
+        if (!validEvidenceIds.has(id)) issues.push(`${label} 引用了不存在的 ziwei evidence ID: ${id}`);
+      });
+    }
+    const counters = Array.isArray(conclusion.counter_evidence_ids) ? conclusion.counter_evidence_ids : [];
+    counters.forEach(id => {
+      if (!validEvidenceIds.has(id)) issues.push(`${label} 引用了不存在的 counter evidence ID: ${id}`);
+    });
+    const isDoubleHigh = conclusion.agreement === 'same'
+      && conclusion.bazi_level === 'high'
+      && conclusion.ziwei_level === 'high'
+      && counters.length === 0;
+    if (isDoubleHigh && conclusion.delivery !== 'direct') {
+      issues.push(`${label}: 双高同断且无反证时 delivery 必须为 direct`);
+    }
+    if (conclusion.delivery === 'direct') {
+      if (!isDoubleHigh) issues.push(`${label}: direct 只允许用于双高同断且无反证的结论`);
+      const verdict = conclusion.verdict || '';
+      const weak = ['可能', '大概', '多半', '应该', '也许', '或许', '八成', '七成', '有戏', '悬', '难说', '不一定'];
+      const hitWeak = weak.filter(word => verdict.includes(word));
+      if (hitWeak.length) issues.push(`${label}.verdict 含退让词: ${hitWeak.join('/')}`);
+    }
+  });
   return issues;
 }
 
+function derivePlanFirm(plan) {
+  return Array.isArray(plan?.conclusions)
+    && plan.conclusions.some(conclusion => conclusion && conclusion.delivery === 'direct');
+}
 function main() {
   const args = parseArgs();
 
@@ -249,13 +312,20 @@ function main() {
 
   if (args.response) {
     const text = loadText(args.response);
-    // V6：roundMeta 统一为 { isFirm:bool }；默认从 plan.delivery 自动推导（direct=firm）
+    // V6：roundMeta 统一为 { isFirm:bool }；默认从 conclusions[].delivery 自动推导（direct=firm）
     let meta = null;
     if (args.roundMeta) {
       try { meta = JSON.parse(fs.readFileSync(args.roundMeta, 'utf8')); }
       catch (e) { console.error(`[FAIL] 无法读取 roundMeta: ${e.message}`); process.exit(1); }
     } else if (plan) {
-      meta = { isFirm: plan.delivery === 'direct' };
+      meta = { isFirm: derivePlanFirm(plan) };
+    }
+    if (plan && derivePlanFirm(plan) && meta && meta.isFirm !== true) {
+      console.error('[FAIL] roundMeta 不得把 schema 中的 direct 结论降级为非直断');
+      process.exit(1);
+    }
+    if (plan && meta) {
+      meta = { ...meta, isFirm: derivePlanFirm(plan) || meta.isFirm === true };
     }
     const issues = checkResponse(text, meta);
     allIssues.push(...issues);

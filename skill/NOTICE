@@ -1,4 +1,4 @@
-laoshifu v2.0
+laoshifu v4.0.1
 Copyright (c) 2026 dzcmemory-web
 
 ================================================================================
@@ -53,3 +53,12 @@ This product includes third-party open-source components.
 见 LICENSE 文件。ziwei.my 仅作为公开学习资料来源，未复制或内置其文章正文。
 The original parts of this project are released under the MIT License (see LICENSE).
 ================================================================================
+
+6. @aceworld/liuyao-algorithm
+   位置 / Location: scripts/node_modules/@aceworld/liuyao-algorithm/
+   说明 / Description: 自包含六爻时间起卦与报数起卦排盘算法。
+   许可 / License: MIT-0
+
+7. qimen-core（本 Skill 内置适配版）
+   位置 / Location: scripts/qimen_core/ 与 references/qimen/
+   说明 / Description: 自包含时家转盘奇门排盘与问事解读代码；事件融合不依赖外部 qimen-dunjia 路径。

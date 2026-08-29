@@ -8,75 +8,96 @@
 内部黑箱：同时调用六爻和奇门，融合对比后输出统一结果。
 用户只看到：统一断语 + 标准六爻卦图（奇门九宫不可见）
 """
-import sys, os, json, argparse
+import sys, os, json, argparse, shutil, subprocess, tempfile
 from datetime import datetime
 
-# ── 路径设置 ──
+# Windows 控制台可能使用本地代码页；脚本输出统一 UTF-8，避免宿主读取日志乱码。
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+
+# ── 自包含运行时 ──
 SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, '/root/.openclaw/workspace/skills/yxf_yixue')
-sys.path.insert(0, '/root/.openclaw/workspace/skills/qimen-dunjia/scripts')
+SCRIPT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 
-def paipan_liuyao(dt, method='time', numbers=None):
-    """六爻排盘"""
-    from yxf_yixue.liuyao.liuyao_api import LiuyaoApi
-    from yxf_yixue.liuyao._fenxi import Chuantongfenxi
+def _node_command():
+    """Find a host Node.js runtime without assuming the author's machine path."""
+    configured = os.environ.get("NODE") or os.environ.get("NODEJS")
+    candidates = []
+    if configured:
+        candidates.extend([configured, shutil.which(configured) or ""])
+    for candidate in ("node", "nodejs"):
+        candidates.append(shutil.which(candidate) or "")
+    # OpenClaw's Linux image may expose the bundled Playwright Node runtime but
+    # intentionally omit node from the service user's PATH.
+    candidates.extend([
+        "/usr/local/lib/python3.11/site-packages/playwright/driver/node",
+        "/usr/local/lib/python3.11/site-packages/patchright/driver/node",
+        "/usr/local/bin/node", "/usr/bin/node",
+    ])
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    raise RuntimeError("未找到 Node.js。请安装 Node.js 18+，设置 NODE 环境变量，或提供可执行的宿主 Node 运行时。")
 
-    api = LiuyaoApi()
-    if method == 'numbers' and numbers and len(numbers) == 3:
-        pan = api.paipan(dt, qiguafangfa='三数字起卦', qiguashuru=numbers)
-    else:
-        pan = api.paipan(dt, qiguafangfa='标准时间起卦')
 
-    cf = Chuantongfenxi()
-    pan = cf.fenxi(pan)
-    output = api.P.output()
+def _run_local_chart(script_name, args):
+    """Run a bundled chart script without a shell and return its JSON output."""
+    script = os.path.join(SCRIPT_ROOT, script_name)
+    if not os.path.isfile(script):
+        raise RuntimeError(f"技能包缺少内置排盘脚本: {script_name}")
+    with tempfile.TemporaryDirectory(prefix="laoshifu-event-") as tmp:
+        output = os.path.join(tmp, "chart.json")
+        command = [_node_command(), script, *args, f"--output={output}"]
+        proc = subprocess.run(command, cwd=SKILL_ROOT, capture_output=True, text=True, encoding="utf-8")
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "未知错误").strip()
+            raise RuntimeError(f"{script_name} 运行失败: {detail}")
+        try:
+            with open(output, "r", encoding="utf-8-sig") as handle:
+                return json.load(handle)
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"{script_name} 未生成有效排盘 JSON: {exc}") from exc
 
-    # 提取关键信息
-    bengua = pan['盘']['10']['六十四卦']
-    biangua = pan['盘'].get('20', {}).get('六十四卦', '')
-    dongyao = pan.get('动爻', [])
 
-    # 构建卦图 Markdown 表格
-    diagram = build_liuyao_diagram(pan)
-
-    # 世应
+def paipan_liuyao(dt, method='time', numbers=None, time_zone=8, category='general', question=''):
+    """Call the bundled deterministic Liuyao engine and map it to the V4 fusion shape."""
+    args = [
+        f"--question={question}", f"--category={category}", f"--method={method}",
+        f"--year={dt.year}", f"--month={dt.month}", f"--day={dt.day}",
+        f"--hour={dt.hour}", f"--minute={dt.minute}", f"--timeZone={time_zone}",
+    ]
+    if method == 'numbers':
+        if not numbers or len(numbers) != 3 or any(int(value) <= 0 for value in numbers):
+            raise ValueError("报数起卦必须提供恰好三个正整数")
+        args.append("--numbers=" + ",".join(str(int(value)) for value in numbers))
+    chart = _run_local_chart('liuyao.cjs', args)
+    lines = chart.get('lines', [])
+    moving = []
     shi = ying = None
-    dongyao_list = []
-    for k in sorted(pan['盘'].keys(), key=lambda x: int(x)):
-        v = pan['盘'][k]
-        if k.startswith('1'):
-            if v.get('世应') == '世':
-                shi = {'爻位': int(k[1]), '六亲': v.get('六亲', ''), '纳支': v.get('纳支', ''),
-                       '五行': v.get('五行', ''), '六神': v.get('六神', '')}
-            if v.get('世应') == '应':
-                ying = {'爻位': int(k[1]), '六亲': v.get('六亲', ''), '纳支': v.get('纳支', ''),
-                        '五行': v.get('五行', ''), '六神': v.get('六神', '')}
-            if v.get('动爻', '').strip() in ('O', 'X'):
-                dongyao_list.append({
-                    '爻位': int(k[1]), '六亲': v.get('六亲', ''), '纳支': v.get('纳支', ''),
-                    '五行': v.get('五行', '')
-                })
-
-    # 四柱
-    ganzhi = pan.get('干支', {})
-    ri_zhu = ganzhi.get('日柱', '')
-    ri_kong = ''
-    if len(ganzhi.get('四柱空亡', [])) > 2:
-        ri_kong = ganzhi['四柱空亡'][2]
-
+    for line in lines:
+        item = {
+            '爻位': line.get('position'), '六亲': line.get('sixRelative', ''),
+            '纳支': line.get('najiaDizhi', ''), '五行': line.get('wuxing', ''),
+            '六神': line.get('sixGod', ''),
+        }
+        if line.get('isWorld'):
+            shi = item
+        if line.get('isResponse'):
+            ying = item
+        if line.get('isChanging'):
+            moving.append(item)
+    hexagrams = chart.get('hexagrams', {})
+    calendar = chart.get('calendar', {})
     return {
-        '本卦': bengua,
-        '变卦': biangua,
-        '动爻': dongyao_list,
-        '世爻': shi,
-        '应爻': ying,
-        '日柱': ri_zhu,
-        '日空亡': ri_kong,
-        'diagram': diagram,
-        'raw_output': output,
+        '本卦': hexagrams.get('primary', {}).get('name', ''),
+        '变卦': hexagrams.get('changed', {}).get('name', ''),
+        '动爻': moving, '世爻': shi or {}, '应爻': ying or {},
+        '日柱': calendar.get('ganzhi', {}).get('day', ''),
+        '日空亡': '、'.join(calendar.get('voidBranches', [])),
+        'diagram': chart.get('diagram', ''), 'raw_output': chart,
     }
-
 
 def build_liuyao_diagram(pan):
     """构建标准的六爻卦图 Markdown 表格"""
@@ -121,28 +142,32 @@ def build_liuyao_diagram(pan):
     return "\n".join(lines)
 
 
-def paipan_qimen(y, m, d, h, mi, question):
-    """奇门排盘+解盘"""
-    from engine import QimenEngine
-    from duanju import DuanjuEngine
-
-    engine = DuanjuEngine()
-    pan = QimenEngine().paipan(y, m, d, h, mi)
-    report = engine.duanju(pan, question)
-
+def paipan_qimen(y, m, d, h, mi, question, time_zone=8, category='general'):
+    """Call the bundled deterministic Qimen engine and map it to the V4 fusion shape."""
+    chart = _run_local_chart('qimen.cjs', [
+        f"--question={question}", f"--category={category}",
+        f"--year={y}", f"--month={m}", f"--day={d}",
+        f"--hour={h}", f"--minute={mi}", f"--timeZone={time_zone}",
+    ])
+    pan = chart.get('pan', {})
+    jushu = pan.get('jushu', {})
+    xunshou = pan.get('xunshou', {})
+    zhifu = pan.get('zhifu_zhishi', {})
+    interpretation = chart.get('interpretation', {})
     return {
-        '局数': f"{'阳' if pan.jushu.yin_yang == '阳' else '阴'}遁{pan.jushu.ju_num}局",
-        '节气': f"{pan.jushu.jieqi}{pan.jushu.yuan}",
-        '四柱': f"{pan.sizhu.year_gan}{pan.sizhu.year_zhi} {pan.sizhu.month_gan}{pan.sizhu.month_zhi} {pan.sizhu.day_gan}{pan.sizhu.day_zhi} {pan.sizhu.hour_gan}{pan.sizhu.hour_zhi}",
-        '值符': f"{pan.zhifu_zhishi.zhifu_xing}(落{pan.zhifu_zhishi.zhifu_luo_gong}宫)",
-        '值使': f"{pan.zhifu_zhishi.zhishi_men}(落{pan.zhifu_zhishi.zhishi_luo_gong}宫)",
-        '空亡': '、'.join(pan.xunshou.kong_zhi) if pan.xunshou.kong_zhi else '',
-        '用神定位': report.get('用神定位', {}),
-        '格局分析': report.get('格局分析', []),
-        '特殊状态': report.get('特殊状态', []),
-        '综合结论': report.get('综合结论', ''),
+        '局数': f"{jushu.get('阴阳遁', '')}{jushu.get('局数', '')}局",
+        '节气': f"{jushu.get('节气', '')}{jushu.get('元', '')}",
+        '四柱': ' '.join(pan.get('sizhu', {}).get(key, '') for key in ('年柱', '月柱', '日柱', '时柱')),
+        '值符': f"{zhifu.get('值符星', '')}(落{zhifu.get('值符落宫', '')}宫)",
+        '值使': f"{zhifu.get('值使门', '')}(落{zhifu.get('值使落宫', '')}宫)",
+        '空亡': '、'.join(xunshou.get('空亡地支', [])),
+        '用神定位': interpretation.get('用神定位', {}),
+        '格局分析': interpretation.get('格局分析', []),
+        '特殊状态': interpretation.get('特殊状态', []),
+        '综合结论': interpretation.get('综合结论', ''),
+        'signals': chart.get('signals', {}),
+        'raw_output': chart,
     }
-
 
 def fuse(question, liuyao, qimen, category='general'):
     """六爻+奇门双法融合"""
@@ -388,10 +413,10 @@ def main():
             sys.exit(1)
 
     # 1. 六爻排盘
-    liuyao = paipan_liuyao(dt, method=args.method, numbers=numbers)
+    liuyao = paipan_liuyao(dt, method=args.method, numbers=numbers, time_zone=args.timeZone, category=args.category, question=args.question)
 
     # 2. 奇门排盘+解盘
-    qimen = paipan_qimen(args.year, args.month, args.day, args.hour, args.minute, args.question)
+    qimen = paipan_qimen(args.year, args.month, args.day, args.hour, args.minute, args.question, time_zone=args.timeZone, category=args.category)
 
     # 3. 融合
     result = fuse(args.question, liuyao, qimen, category=args.category)

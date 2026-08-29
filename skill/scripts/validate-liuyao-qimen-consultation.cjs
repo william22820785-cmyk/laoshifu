@@ -49,7 +49,7 @@ try {
 let response = '';
 if (responsePath) {
   try {
-    response = fs.readFileSync(responsePath, 'utf-8');
+    response = fs.readFileSync(responsePath, 'utf-8').replace(/\r\n?/g, '\n');
   } catch (e) {
     // 可选，忽略
   }
@@ -169,14 +169,21 @@ for (const term of forbiddenInUserFields) {
 
 // ─── 6. Response 额外检查（V5 升级版）───
 if (response) {
+  // 六爻卦图允许出现六亲/六神等表格字段；正文不允许泄露任何后台术语。
+  const normalizedDiagram = String(fusion.diagram || '').replace(/\r\n?/g, '\n');
+  const responseProse = response.replace(/\r\n?/g, '\n').replace(normalizedDiagram, '');
   for (const term of forbiddenInUserFields) {
-    if (response.includes(term)) {
-      if (['旺衰', '用神', '格局'].includes(term)) {
-        errors.push(`response.txt 泄露推断术语: "${term}"`);
-      } else {
-        warnings.push(`response.txt 含可疑术语: "${term}"`);
-      }
+    if (responseProse.includes(term)) {
+      errors.push(`response.txt 正文泄露后台术语: "${term}"`);
     }
+  }
+  // 奇门盘面与融合过程是硬禁项，不能只报 WARN 后继续通过。
+  const qimenLeakTerms = ['天芮', '天蓬', '天心', '天冲', '天辅', '天禽', '天任', '天英', '天柱',
+    '休门', '生门', '伤门', '杜门', '景门', '死门', '惊门', '开门',
+    '值符', '值使', '九宫', '宫位', '天盘', '地盘', '八门', '九星', '八神',
+    '阴遁', '阳遁', '局数', '门迫', '奇门', '双盘', '交叉验证', '融合', '评分', '权重'];
+  for (const term of qimenLeakTerms) {
+    if (responseProse.includes(term)) errors.push(`response.txt 泄露奇门盘面或融合过程: "${term}"`);
   }
 
   // V7 新增：江湖化负向红线（仅保留机器能可靠判定的高置信查杀项）
@@ -200,16 +207,16 @@ if (response) {
   );
   const isFirm = rmeta ? (rmeta.isFirm === true) : autoFirm;
 
-  blackTalk.forEach(t => { if (response.includes(t)) errors.push(`江湖黑话: "${t}"`); });
-  sceneWords.forEach(t => { if (response.includes(t)) errors.push(`假定现场: "${t}"`); });
-  brag.forEach(t => { if (response.includes(t)) errors.push(`自报资历/拍胸脯: "${t}"`); });
-  ruleSpoken.forEach(t => { if (response.includes(t)) errors.push(`行规说破: "${t}"`); });
+  blackTalk.forEach(t => { if (responseProse.includes(t)) errors.push(`江湖黑话: "${t}"`); });
+  sceneWords.forEach(t => { if (responseProse.includes(t)) errors.push(`假定现场: "${t}"`); });
+  brag.forEach(t => { if (responseProse.includes(t)) errors.push(`自报资历/拍胸脯: "${t}"`); });
+  ruleSpoken.forEach(t => { if (responseProse.includes(t)) errors.push(`行规说破: "${t}"`); });
 
   // V9：双高轮不变量（审官+验师V8一致修正）——从“正向凑三件套”改为“弱化词反向否决 + 宽松正向”
   // 建议句豁免：句中含建议标记词即豁免整句（不只测句首）
-  if (isFirm && response) {
+  if (isFirm && responseProse) {
     const adviceMarks = ['你应该', '你要', '你最好', '我劝你', '建议你', '你得', '你先', '你该', '你千万', '你切记', '你别'];
-    const sentences = response.split(/[。！？；\n]/).map(s => s.trim()).filter(s => s.length > 0);
+    const sentences = responseProse.split(/[。！？；\n]/).map(s => s.trim()).filter(s => s.length > 0);
     const verdictText = sentences.filter(s => !adviceMarks.some(m => s.includes(m))).join(' ');
     if (verdictText) {
       // ① 弱化词反向否决：命中任何弱化/退让词即 FAIL（含糊即破功，无论 skeleton 多完整）

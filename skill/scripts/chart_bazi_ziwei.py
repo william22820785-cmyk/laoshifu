@@ -14,7 +14,7 @@ chart_bazi_ziwei.py — 复用 bazi-ziwei-skill 的权威八字+紫微排盘，�
   python chart_bazi_ziwei.py --year=2000 --month=2 --day=4 --hour=12 --minute=0 \
       --gender=male --calendar=solar --timeZone=8 --currentYear=2026 --output=chart.json
 """
-import sys, os, json, argparse, subprocess
+import sys, os, json, argparse, subprocess, shutil
 from datetime import datetime
 import os
 
@@ -22,12 +22,24 @@ import os
 _SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # skill 根目录
 BAZI_ZIWEI_RUN = os.path.join(_SKILL_ROOT, 'engine', 'calculator', 'dist', 'run-chart.js')
 if not os.path.exists(BAZI_ZIWEI_RUN):
-    # 开发环境回退：bazi-ziwei-skill（独立 skill）
-    _dev = '/root/.openclaw/workspace/skills/bazi-ziwei-skill/calculator/dist/run-chart.js'
-    if os.path.exists(_dev):
+    # 可选开发环境回退：仅接受显式环境变量，不写死作者机器路径。
+    _dev = os.environ.get('BAZI_ZIWEI_RUN')
+    if _dev and os.path.exists(_dev):
         BAZI_ZIWEI_RUN = _dev
     else:
-        raise RuntimeError('找不到 run-chart.js：包内 engine/ 与开发环境 bazi-ziwei-skill 均不存在')
+        raise RuntimeError('找不到 run-chart.js：包内 engine/ 不存在；如需外部引擎请设置 BAZI_ZIWEI_RUN')
+
+def _node_command():
+    configured = os.environ.get('NODE') or os.environ.get('NODEJS')
+    candidates = [configured, shutil.which(configured) if configured else None,
+                  shutil.which('node'), shutil.which('nodejs'),
+                  '/usr/local/lib/python3.11/site-packages/playwright/driver/node',
+                  '/usr/local/lib/python3.11/site-packages/patchright/driver/node',
+                  '/usr/local/bin/node', '/usr/bin/node']
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    raise RuntimeError('找不到 Node.js 运行时；请安装 Node.js 或设置 NODE')
 
 WU_XING = {'甲':'木','乙':'木','丙':'火','丁':'火','戊':'土',
            '己':'土','庚':'金','辛':'金','壬':'水','癸':'水'}
@@ -50,12 +62,12 @@ def parse_args():
 
 def call_run_chart(args):
     """调用 bazi-ziwei-skill 的 run-chart.js，返回解析后的 JSON"""
-    cmd = ['node', BAZI_ZIWEI_RUN,
+    cmd = [_node_command(), BAZI_ZIWEI_RUN,
            f'--year={args.year}', f'--month={args.month}', f'--day={args.day}',
            f'--hour={args.hour}', f'--minute={args.minute}', f'--gender={args.gender}']
     if args.calendar == 'lunar':
         cmd.append('--isLunar=true')
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
     if r.returncode != 0:
         raise RuntimeError(f"run-chart.js 失败: {r.stderr[:500]}")
     return json.loads(r.stdout)
