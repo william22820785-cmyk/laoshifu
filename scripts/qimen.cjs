@@ -71,6 +71,35 @@ function calendarData(parts) {
   };
 }
 
+// 起卦时基：local = 用户所在地墙钟，beijing = 北京时墙钟。
+// 六爻引擎在非东八区按当地墙钟排日柱与旬空，奇门必须用同一时基，
+// 否则两法在同一事件上比较的是不同日柱/时柱，双法同断会失真。
+function pillarComparison(localCalendar, beijingCalendar) {
+  const names = ['year', 'month', 'day', 'hour'];
+  const labels = { year: '年柱', month: '月柱', day: '日柱', hour: '时柱' };
+  const localPillars = names.map((key) => localCalendar[key + '_gan'] + localCalendar[key + '_zhi']);
+  const beijingPillars = names.map((key) => beijingCalendar[key + '_gan'] + beijingCalendar[key + '_zhi']);
+  const differences = [];
+  names.forEach((key, index) => {
+    if (localPillars[index] !== beijingPillars[index]) {
+      differences.push(`${labels[key]} 当地 ${localPillars[index]} / 北京 ${beijingPillars[index]}`);
+    }
+  });
+  if (localCalendar.current_jieqi !== beijingCalendar.current_jieqi) {
+    differences.push(`节气 当地 ${localCalendar.current_jieqi} / 北京 ${beijingCalendar.current_jieqi}`);
+  }
+  return {
+    localParts: localCalendar,
+    beijingParts: beijingCalendar,
+    localPillars: localPillars.join(' '),
+    beijingPillars: beijingPillars.join(' '),
+    localJieQi: localCalendar.current_jieqi,
+    beijingJieQi: beijingCalendar.current_jieqi,
+    diverges: differences.length > 0,
+    differences,
+  };
+}
+
 function runPython(script, payload) {
   const candidates = [];
   if (process.env.PYTHON) candidates.push({ command: process.env.PYTHON, prefix: [] });
@@ -115,6 +144,8 @@ function main() {
   if (!Number.isInteger(minute) || minute < 0 || minute > 59) throw new Error('--minute 必须在 0..59');
   if (timeZone < -12 || timeZone > 14) throw new Error('--timeZone 必须在 -12..14');
   if (Math.abs(timeZone * 4 - Math.round(timeZone * 4)) > 1e-9) throw new Error('--timeZone 必须以 15 分钟为单位');
+  const timeBasis = (args.timeBasis || 'local').trim();
+  if (!['local', 'beijing'].includes(timeBasis)) throw new Error('--timeBasis 必须是 local 或 beijing');
 
   const naiveMs = Date.UTC(year, month - 1, day, hour, minute, 0);
   const check = new Date(naiveMs);
@@ -124,10 +155,12 @@ function main() {
   const eventUtcMs = naiveMs - timeZone * 3600000;
   const local = { year, month, day, hour, minute, second: 0 };
   const beijing = partsAtOffset(eventUtcMs, 8);
-  const calendar = calendarData(beijing);
+  const basisParts = timeBasis === 'beijing' ? beijing : local;
+  const calendar = calendarData(basisParts);
+  const basisComparison = pillarComparison(calendarData(local), calendarData(beijing));
   const payload = {
     question: args.question.trim(),
-    qimenLocalTime: beijing,
+    qimenLocalTime: basisParts,
     calendar,
   };
   const bridge = path.join(__dirname, 'qimen_core', 'bridge.py');
@@ -140,16 +173,25 @@ function main() {
       timeZone,
       utc: new Date(eventUtcMs).toISOString(),
       qimenBeijing: isoWithOffset(beijing, 8),
+      basis: timeBasis,
+      basisClock: isoWithOffset(basisParts, timeBasis === 'beijing' ? 8 : timeZone),
     },
     calendar: {
       source: calendar.source,
+      basis: timeBasis,
       currentJieQi: calendar.current_jieqi,
       previousJieQiAt: calendar.previous_jieqi_at,
     },
+    basisComparison,
     ...inner,
   };
   fs.writeFileSync(path.resolve(args.output), JSON.stringify(document, null, 2), 'utf8');
-  process.stdout.write(`奇门排盘完成：${document.pan.jushu['阴阳遁']}${document.pan.jushu['局数']}局 ${document.pan.jushu['节气']}${document.pan.jushu['元']}\n`);
+  process.stdout.write(
+    `奇门排盘完成（时基 ${timeBasis}）：${document.pan.jushu['阴阳遁']}${document.pan.jushu['局数']}局 `
+    + `${document.pan.jushu['节气']}${document.pan.jushu['元']}`
+    + (basisComparison.diverges ? `；时基差异 ${basisComparison.differences.length} 项` : '')
+    + '\n'
+  );
 }
 
 try {

@@ -1,6 +1,6 @@
 # 内部会谈计划
 
-每次实质性断语前生成 JSON 文件。它是后台工件，不得展示给用户。
+每次实质性断语前，先执行 [dual-method-review.md](dual-method-review.md)，再生成本计划；conclusions 必须与 review.conclusions 深度相等，保留其他计划字段。它是后台工件，不得展示给用户。以下只演示结构，不是现成断语；日期、状态、判断和ID必须按实际输入与盘面重写。
 
 ```json
 {
@@ -33,8 +33,8 @@
     {
       "id": "career-2026",
       "topic": "career",
-      "verdict": "这件事不用绕弯子：今年的工作一定会进入调整期，原来的位置很难维持不变。",
-      "timing": "入秋以后变化会更明显。",
+      "verdict": "填写有实际依据的主判断，不保证具体事件必然发生。",
+      "timing": "有时间依据才填写窗口，否则说明无法定时。",
       "conditions": ["主动整理合作边界，变化会更顺。"],
       "guidance": ["不要在旧承诺上继续加码。"],
       "bazi_evidence_ids": ["内部 bazi ID"],
@@ -43,10 +43,12 @@
       "agreement": "same",
       "bazi_level": "high",
       "ziwei_level": "high",
-      "delivery": "direct"
+      "delivery": "direct",
+      "resolution_ids": ["本次复核档案内的ID"],
+      "uncertainty": "填写本题实际解释边界，不得承诺应验。"
     }
   ],
-  "soulNote": "你要过的关不是有没有机会，而是愿不愿意离开已经不合身的位置。"
+  "soulNote": ""
 }
 ```
 
@@ -66,9 +68,14 @@
 - `agreement`：`same` 同向，`complementary` 互补，`conflict` 冲突，`single` 单一体系。
 - `*_level`：只能为 `high|medium|low|none`，必须由所列内部证据支持。
 - `delivery`：`direct|firm|probable|tentative`。
-- `agreement=same` 且两边均为 `high` 时，`delivery` 强制为 `direct`。
-- `direct` 只允许用于双高同断，且 `verdict` 不得含概率词。
-- `counter_evidence_ids` 主动记录同题反证；有同级直接冲突时不得标为 `same`。
-- `soulNote` 是二成点命，长度不得超过断命字段总长度的四分之一。
+新解读以 [dual-method-review.md](dual-method-review.md) 的宿主复核档案为准，所有实际新断语都传 --review；无档案入口只保留 legacy 回归/历史恢复。
 
-所有用户可见字段必须已经黑盒化；只允许内部 ID 字段出现后台体系名称和 evidence ID。
+- `direct/firm` 只用于原证据双高、同范围同向、无反证且没有 unresolved 的条目；主判断明确，条件与局限如实说明，不保证应验。
+- `probable` 给有依据的主要倾向与余地；经真实证据说明的互补或条件化可以使用，不因存在被明确保留的反证就机械改成两套结局。原盘弱证据或仍不够支持时用 `tentative`。
+- `tentative` 写明具体未定方面；真冲突用 unresolved 并保留双方证据。无需固定“两种可能”或冲突开场，不能隐藏未定处，也不靠一句免责掩盖必然断语。
+- 每条结论都填 `resolution_ids` 和非空 `uncertainty`；正文包含最终判断、未定处，并交代已有的时间、条件及行动。事件各条等级保留原值，不能因达成共识升档。
+
+- `counter_evidence_ids` 主动记录同题反证；同范围的真冲突不能标为 `same`。
+- `soulNote` 为兼容保留的可选字段，默认留空或省略。不要为填字段另编点命金句；有必要的提醒直接融入正文。
+
+V4.1：用户可见字段允许体系名与真实术语解释；内部ID和算法细节仍不外露。公开术语附独立public-notes.json，遵循 paid-consultation-standard.md。

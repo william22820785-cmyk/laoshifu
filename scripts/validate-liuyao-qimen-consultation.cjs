@@ -1,289 +1,157 @@
 #!/usr/bin/env node
-/**
- * validate-liuyao-qimen-consultation.cjs
- * =====================================
- * V2.0 六爻+奇门融合结果校验脚本
- * 
- * 用法:
- *   node scripts/validate-liuyao-qimen-consultation.cjs --fusion=fusion.json
- *   node scripts/validate-liuyao-qimen-consultation.cjs --fusion=fusion.json --response=response.txt
- */
-
-const fs = require('fs');
-const path = require('path');
-
-// ─── 参数解析（支持 --flag=value 和 --flag value 两种格式）───
-const args = process.argv.slice(2);
-function getArg(name) {
-  for (const a of args) {
-    if (a.startsWith(name + '=')) return a.slice(name.length + 1);
+/** V4.1 event delivery validator: structured result, exact diagram, grounded public gloss. */
+const P=require('./presentation-policy.cjs');
+const {evaluate}=require('./dual-review.cjs');
+const {spawnSync}=require('node:child_process');
+const path=require('node:path');
+const HEDGE_WORDS=['大概率','可能','也许','或许','多半','不一定','说不准','难说','未必','倾向于'];
+const RESIDUAL_WORDS=['多半','可能','取决于','要看','不算板上钉钉','留有余地'];
+function containsAny(text,words){return words.some(word=>text.includes(word));}
+function evidenceIssues(f){
+ const errors=[],registry=new Map();
+ const items=Array.isArray(f.evidence)?f.evidence:[];
+ if(!items.length)errors.push('evidence 判据清单为空，等于没有可回指的盘面依据');
+ for(const [i,item] of items.entries()){
+  const label=`evidence[${i}]`;
+  if(!P.plain(item)){errors.push(label+' 不是对象');continue;}
+  if(!P.nonempty(item.id)){errors.push(label+' 缺少 id');continue;}
+  if(registry.has(item.id))errors.push('判据编号重复: '+item.id);
+  registry.set(item.id,item);
+  if(!['liuyao','qimen'].includes(item.system))errors.push(label+' system 非法');
+  for(const key of ['label','kind'])if(!P.nonempty(item[key]))errors.push(label+'.'+key+' 缺失');
+  const actual=P.resolvePointer(f,item.sourcePath);
+  if(actual===undefined)errors.push(label+' sourcePath 无法回指本次盘面');
+  else if(actual!==item.value)errors.push(label+' value 与盘面字段不一致');
+ }
+ return {errors,registry};
+}
+function timeBasisIssues(f){
+ const errors=[];
+ if(!['local','beijing'].includes(f.timeBasis))errors.push('timeBasis 必须是 local 或 beijing');
+ if(!P.plain(f.basisComparison))errors.push('basisComparison 缺失');
+ else if(f.basisComparison.diverges&&!P.nonempty(f.timeBasisDisclosure))
+  errors.push('当地与北京四柱存在差异时必须给出 timeBasisDisclosure');
+ return errors;
+}
+function verifiedDiagramProse(args) {
+ const script=path.join(__dirname,'diagram_render.py');
+ const command=[script,'--verify',`--fusion=${args.fusion}`,`--response=${args.response}`,`--mode=${args.diagramMode||'image'}`];
+ if(args.diagramBundle)command.push(`--bundle=${args.diagramBundle}`);
+ const configured=process.env.PYTHON||process.env.PYTHON3;
+ const candidates=configured?[configured]:(process.platform==='win32'?['python','python3']:['python3','python']);
+ for(const python of candidates){
+  const result=spawnSync(python,command,{encoding:'utf8',timeout:30000,maxBuffer:2*1024*1024,
+   env:{...process.env,PYTHONUTF8:'1',PYTHONIOENCODING:'utf-8'},windowsHide:true});
+  if(result.error?.code==='ENOENT')continue;
+  if(result.error)throw Error('卦图核验无法完成: '+result.error.message);
+  if(result.status!==0)throw Error((result.stderr||result.stdout||'卦图核验失败').trim());
+  const output=JSON.parse(result.stdout);
+  if(typeof output.prose!=='string')throw Error('卦图核验未返回正文');
+  return output.prose;
+ }
+ throw Error('未找到Python；请设置PYTHON为已有Python可执行文件路径');
+}
+function validate(f,response,notes,detail,args){
+ const errors=[];
+ if(!P.plain(f))return ['fusion 必须是对象'];
+ const original=f;
+ if(args.review){
+  const result=evaluate(original,P.readJSON(args.review),{kind:'event',sourcePath:args.fusion,response});
+  if(result.errors.length)return result.errors;
+  f={...original,conclusions:result.conclusions,agreement:result.agreement};
+ }
+ const SUPPORTED_VERSIONS=['aceworld-liuyao-qimen-fusion.v2','aceworld-liuyao-qimen-fusion.v3'];
+ const isCurrent=f.schemaVersion==='aceworld-liuyao-qimen-fusion.v3';
+ if(!SUPPORTED_VERSIONS.includes(f.schemaVersion))errors.push('schemaVersion 不匹配');
+ else if(!isCurrent)console.log('[NOTE] 旧版 v2 结果按历史规则复核；新结果应为 v3');
+ const reading=['reading','calibration','deepening','closure','conclusion'];
+ if(![...reading,'restricted','rejected'].includes(f.stage))errors.push('stage 非法');
+ if(!P.plain(f.question)||!P.nonempty(f.question.text))errors.push('question.text 必须非空');
+ if(!Array.isArray(f.conclusions))errors.push('conclusions 必须是数组');
+ if(typeof f.diagram!=='string')errors.push('diagram 必须是字符串');
+ if(errors.length)return errors;
+ if(['restricted','rejected'].includes(f.stage)){
+  if(f.conclusions.length||f.diagram)errors.push('拒答/受限不得附带结论或卦图');
+  if(f.methods||f.agreement||Object.hasOwn(f,'diagramData')||args.diagramBundle)errors.push('拒答/受限不得附带盘面');
+  if(!P.nonempty(f.message))errors.push('拒答/受限需 message');
+  return errors.concat(P.textIssues(response,detail));
+ }
+ if(!P.plain(f.methods)||!P.plain(f.methods.liuyao)||!P.plain(f.methods.qimen))errors.push('methods.liuyao/qimen 必须是对象');
+ const agreements=['same','complementary','conflict'];
+ if(!P.plain(f.agreement)||!agreements.includes(f.agreement.overall))errors.push('agreement.overall 非法');
+ if(!f.conclusions.length||f.conclusions.length>4)errors.push('reading 需1-4条结论');
+ let registry=new Map();
+ if(isCurrent){
+  errors.push(...timeBasisIssues(f));
+  const evidenceChecks=evidenceIssues(f);
+  errors.push(...evidenceChecks.errors);
+  registry=evidenceChecks.registry;
+  if(!P.plain(f.question))errors.push('question 必须是对象');
+  else for(const key of ['desiredOutcome','knownContext'])
+   if(!Object.hasOwn(f.question,key))errors.push('question.'+key+' 缺失');
+  const points=Array.isArray(f.agreement?.points)?f.agreement.points:[];
+  if(!points.length)errors.push('agreement.points 不能为空');
+  for(const [i,p] of points.entries())
+   if(!P.nonempty(p?.detail))errors.push(`agreement.points[${i}].detail 不能为空`);
+ }
+ const ids=new Set();
+ for(const [i,c] of f.conclusions.entries()){
+  const label=`conclusions[${i}]`;
+  if(!P.plain(c)){errors.push(label+' 不是对象');continue;}
+  for(const k of ['id','verdict'])if(!P.nonempty(c[k]))errors.push(label+'.'+k+' 缺失');
+  if(ids.has(c.id))errors.push('重复结论ID');ids.add(c.id);
+  if(!['firm','probable','tentative'].includes(c.delivery))errors.push(label+' delivery非法');
+  for(const k of ['liuyao_level','qimen_level'])if(!['high','medium','low','none'].includes(c[k]))errors.push(label+' '+k+'非法');
+  if(!agreements.includes(c.agreement))errors.push(label+' agreement非法');
+  for(const k of ['conditions','guidance','liuyao_evidence_ids','qimen_evidence_ids','counter_evidence_ids']){
+   if(!Array.isArray(c[k])||c[k].some(x=>typeof x!=='string'))errors.push(label+' '+k+'必须是字符串数组');
   }
-  const idx = args.indexOf(name);
-  return idx >= 0 ? args[idx + 1] : null;
-}
-
-const fusionPath = getArg('--fusion');
-const responsePath = getArg('--response');
-const roundMetaPath = getArg('--roundMeta');
-
-if (!fusionPath) {
-  console.error('用法: node validate-liuyao-qimen-consultation.cjs --fusion=fusion.json --response=response.txt [--roundMeta=meta.json]');
-  process.exit(2);
-}
-
-// V5: 强制要求 --response（词表要生效，答复必须被扫描；缺失即 FAIL，不再静默跳过）
-if (!responsePath) {
-  console.error('[FAIL] 缺少 --response 参数。V5 起强制扫描答复文本，请传入 response.txt');
-  process.exit(1);
-}
-
-// ─── 加载数据 ───
-let fusion;
-try {
-  fusion = JSON.parse(fs.readFileSync(fusionPath, 'utf-8'));
-} catch (e) {
-  console.error(`无法读取 fusion 文件: ${e.message}`);
-  process.exit(1);
-}
-
-let response = '';
-if (responsePath) {
-  try {
-    response = fs.readFileSync(responsePath, 'utf-8').replace(/\r\n?/g, '\n');
-  } catch (e) {
-    // 可选，忽略
-  }
-}
-
-const errors = [];
-const warnings = [];
-
-// ─── 1. Schema 版本检查 ───
-if (fusion.schemaVersion !== 'aceworld-liuyao-qimen-fusion.v2') {
-  errors.push(`schemaVersion: 预期 aceworld-liuyao-qimen-fusion.v2, 实际 ${fusion.schemaVersion}`);
-}
-
-// ─── 2. 必需字段检查 ───
-const required = ['schemaVersion', 'stage', 'question', 'methods', 'agreement', 'conclusions', 'diagram'];
-for (const f of required) {
-  if (!(f in fusion)) {
-    errors.push(`缺少必需字段: ${f}`);
-  }
-}
-
-if (fusion.question) {
-  if (!fusion.question.text) errors.push('question.text 不能为空');
-  if (!fusion.question.category) warnings.push('question.category 未填写');
-}
-
-if (fusion.methods) {
-  if (!fusion.methods.liuyao) errors.push('缺少 methods.liuyao');
-  if (!fusion.methods.qimen) errors.push('缺少 methods.qimen');
-  
-  if (fusion.methods.qimen) {
-    // 检查奇门九宫格是否泄露
-    const qmKeys = Object.keys(fusion.methods.qimen);
-    const forbiddenQimen = ['九宫', '宫位', '天盘', '地盘', '八门', '九星', '八神', 'pan', '盘面', '格局详情'];
-    for (const fk of forbiddenQimen) {
-      if (qmKeys.some(k => k.includes(fk))) {
-        errors.push(`奇门九宫格泄露: methods.qimen 包含 "${fk}" 相关字段`);
-      }
-    }
-    const allowedQimen = ['局数', '节气', '值符', '值使', '空亡'];
-    for (const k of qmKeys) {
-      if (!allowedQimen.includes(k)) {
-        warnings.push(`methods.qimen 包含非标准字段 "${k}"，可能泄露内部信息`);
-      }
-    }
-  }
-}
-
-// ─── 3. 双高同断规则检查 ───
-if (fusion.agreement && fusion.conclusions) {
-  for (const c of fusion.conclusions) {
-    const isSame = fusion.agreement.overall === 'same';
-    const lyHigh = c.liuyao_level === 'high';
-    const qmHigh = c.qimen_level === 'high';
-    const hasCounter = c.counter_evidence_ids && c.counter_evidence_ids.length > 0;
-    const deliveryShouldBeFirm = isSame && lyHigh && qmHigh && !hasCounter;
-    
-    if (deliveryShouldBeFirm && c.delivery !== 'firm') {
-      errors.push(
-        `${c.id}: agreement=same + liuyao=high + qimen=high + 无反证 → delivery 须为 firm, 实际 ${c.delivery}`
-      );
-    }
-    
-    // firm 时 verdict 不得含概率词
-    if (c.delivery === 'firm') {
-      const probWords = ['可能', '大概', '也许', '多半', '大概率', '有可能', '说不定', '差不多', '基本上', '应该是'];
-      for (const w of probWords) {
-        if (c.verdict && c.verdict.includes(w)) {
-          errors.push(`${c.id}: delivery=firm 但 verdict 含概率词 "${w}"`);
-          break;
-        }
-      }
-    }
-  }
-}
-
-// ─── 4. counter_evidence_ids 与 agreement 矛盾检查 ───
-if (fusion.conclusions) {
-  for (const c of fusion.conclusions) {
-    if (c.agreement === 'same' && c.counter_evidence_ids && c.counter_evidence_ids.length > 0) {
-      errors.push(`${c.id}: agreement=same 但 counter_evidence_ids 非空`);
-    }
+  if(typeof c.timing!=='string')errors.push(label+' timing必须是字符串');
+ const counter=Array.isArray(c.counter_evidence_ids)&&c.counter_evidence_ids.length>0;
+ if(c.agreement==='same'&&counter)errors.push(label+' same与反证矛盾');
+ const same=f.agreement?.overall==='same'&&c.agreement==='same';
+ const doubleHigh=same&&c.liuyao_level==='high'&&c.qimen_level==='high'&&!counter;
+ const weak=c.liuyao_level==='low'||c.qimen_level==='low'||c.agreement==='conflict'||counter;
+  if(isCurrent){
+   if(!args.review&&doubleHigh&&c.id==='outcome'&&c.delivery!=='firm')errors.push(label+' 双高同向且无反证时应给出firm');
+   if(c.delivery==='firm'&&!doubleHigh)errors.push(label+' 说死(firm)需两法都high、方向一致且无反证');
+   if(!args.review&&c.delivery==='probable'&&weak)errors.push(label+' 依据偏弱或相左时应降为tentative');
+   const referenced=[...(c.liuyao_evidence_ids||[]),...(c.qimen_evidence_ids||[]),...(c.counter_evidence_ids||[])];
+   if(!referenced.length)errors.push(label+' 未引用任何盘面判据');
+   for(const evidenceId of referenced)if(!registry.has(evidenceId))errors.push(label+' 引用了不存在的判据: '+evidenceId);
+   const ly=new Set(c.liuyao_evidence_ids||[]),qm=new Set(c.qimen_evidence_ids||[]);
+   if(ly.size&&qm.size&&[...ly].every(id=>qm.has(id))&&ly.size===qm.size)
+    errors.push(label+' 两法引用同一组判据编号，等于没有分别取证');
+   const verdict=P.normalize(String(c.verdict||''));
+   if(c.delivery==='firm'&&containsAny(verdict,HEDGE_WORDS))errors.push(label+' 说死档不得出现含糊措辞');
+   if(!args.review&&c.delivery==='probable'&&!containsAny(verdict,RESIDUAL_WORDS))errors.push(label+' 留余地档必须写出余地或条件');
+   if(!args.review&&c.delivery==='tentative'&&!verdict.includes('两种'))errors.push(label+' 依据弱或相左时必须并列两种可能');
+  }else{
+   if(doubleHigh&&c.delivery!=='firm')errors.push(label+' 双高同向需firm');
+   if(c.delivery==='firm'&&weak)errors.push(label+' 弱依据/冲突不能firm');
   }
 }
-
-// ─── 5. 证据泄露检查 ───
-const forbiddenInUserFields = [
-  '旺衰', '用神', '世应', '六亲', '六神', '伏神', '飞神',
-  '天芮', '天蓬', '天心', '天冲', '天辅', '天禽', '天任', '天英', '天柱',
-  '休门', '生门', '伤门', '杜门', '景门', '死门', '惊门', '开门',
-  '值符', '螣蛇', '太阴', '六合', '勾陈', '朱雀', '九地', '九天', '白虎', '玄武',
-  '九宫', '旺相', '休囚', '空亡宫', '生克', '格局',
-  'evidence', '权重', '分数', '等级',
-];
-
-const userVisibleFields = [];
-for (const c of (fusion.conclusions || [])) {
-  userVisibleFields.push(c.verdict || '');
-  userVisibleFields.push(c.timing || '');
-  userVisibleFields.push((c.conditions || []).join(' '));
-  userVisibleFields.push((c.guidance || []).join(' '));
+ if(f.agreement?.overall==='same'&&Array.isArray(f.agreement.conflicts)&&f.agreement.conflicts.length)errors.push('overall=same但conflicts非空');
+ let prose=response;
+ if(Object.hasOwn(f,'diagramData')||args.diagramBundle||args.diagramMode){
+  try{prose=verifiedDiagramProse(args);}catch(e){errors.push(e.message);return errors;}
+ }else{
+  // Historical v2 files remain verifiable; new engine output cannot use this branch.
+  const diagram=P.normalize(f.diagram);
+  if(!diagram.trim()||!response.includes(diagram))errors.push('答复缺少原样卦图（允许LF/CRLF差异）');
+  prose=diagram?response.replace(diagram,''):response;
+ }
+errors.push(...P.textIssues(prose,detail),...P.noteIssues(prose,original,notes));
+ if(P.nonempty(f.timeBasisDisclosure)&&!response.includes(P.normalize(f.timeBasisDisclosure)))
+  errors.push('答复缺少时基披露原文: '+f.timeBasisDisclosure);
+ return errors;
 }
-userVisibleFields.push(fusion.soulNote || '');
-// diagram 不纳入检查 — 六爻卦图（含六神、六亲）是用户合法可见内容
-
-const visibleText = userVisibleFields.join(' ');
-for (const term of forbiddenInUserFields) {
-  const hardForbidden = ['旺衰', '用神', '伏神', '飞神', '格局', '权重', '分数', '等级', 'evidence'];
-  if (visibleText.includes(term)) {
-    if (hardForbidden.includes(term)) {
-      errors.push(`推断术语泄露到用户可见字段: "${term}"`);
-    } else {
-      warnings.push(`可能泄露内部信息: "${term}" 出现在用户可见字段`);
-    }
-  }
-}
-
-// ─── 6. Response 额外检查（V5 升级版）───
-if (response) {
-  // 六爻卦图允许出现六亲/六神等表格字段；正文不允许泄露任何后台术语。
-  const normalizedDiagram = String(fusion.diagram || '').replace(/\r\n?/g, '\n');
-  const responseProse = response.replace(/\r\n?/g, '\n').replace(normalizedDiagram, '');
-  for (const term of forbiddenInUserFields) {
-    if (responseProse.includes(term)) {
-      errors.push(`response.txt 正文泄露后台术语: "${term}"`);
-    }
-  }
-  // 奇门盘面与融合过程是硬禁项，不能只报 WARN 后继续通过。
-  const qimenLeakTerms = ['天芮', '天蓬', '天心', '天冲', '天辅', '天禽', '天任', '天英', '天柱',
-    '休门', '生门', '伤门', '杜门', '景门', '死门', '惊门', '开门',
-    '值符', '值使', '九宫', '宫位', '天盘', '地盘', '八门', '九星', '八神',
-    '阴遁', '阳遁', '局数', '门迫', '奇门', '双盘', '交叉验证', '融合', '评分', '权重'];
-  for (const term of qimenLeakTerms) {
-    if (responseProse.includes(term)) errors.push(`response.txt 泄露奇门盘面或融合过程: "${term}"`);
-  }
-
-  // V7 新增：江湖化负向红线（仅保留机器能可靠判定的高置信查杀项）
-  const blackTalk = ['金点', '空子', '攒尖儿', '戗盘', '春点', '切口', '尖头儿', '腥盘'];
-  // 假定现场：收窄为精确的现场动作短语（避免“坐我这趟船”比喻、“他进我门”叙事误杀）
-  const sceneWords = ['坐下吧', '坐下来吧', '来我这坐', '坐我这来了', '进我这屋', '伸过手', '点炷香', '看你脸上', '观你', '摊前', '摊上', '坐下来了'];
-  const brag = ['相信我', '我见得多了', '我只会看盘说话', '我从来不骗人', '我这半辈子见过', '我跟那些不一样'];
-  const ruleSpoken = ['卦不二起', '心不诚，我不给你乱断', '义不占财', '我不给你乱断', '耍嘴皮子，我不干那事'];
-
-  // 读取 roundMeta：{ isFirm:bool }（可选覆盖）
-  let rmeta = null;
-  if (roundMetaPath) {
-    try { rmeta = JSON.parse(fs.readFileSync(roundMetaPath, 'utf-8')); }
-    catch (e) { errors.push(`无法读取 roundMeta: ${e.message}`); }
-  }
-  // V7 修 autoFirm：复用真双高校验（same + 双 high + 无反证），不再裸读 delivery==='firm'
-  const autoFirm = (fusion.conclusions || []).some(c =>
-    fusion.agreement?.overall === 'same' &&
-    c.liuyao_level === 'high' && c.qimen_level === 'high' &&
-    (!c.counter_evidence_ids || c.counter_evidence_ids.length === 0)
-  );
-  const isFirm = rmeta ? (rmeta.isFirm === true) : autoFirm;
-
-  blackTalk.forEach(t => { if (responseProse.includes(t)) errors.push(`江湖黑话: "${t}"`); });
-  sceneWords.forEach(t => { if (responseProse.includes(t)) errors.push(`假定现场: "${t}"`); });
-  brag.forEach(t => { if (responseProse.includes(t)) errors.push(`自报资历/拍胸脯: "${t}"`); });
-  ruleSpoken.forEach(t => { if (responseProse.includes(t)) errors.push(`行规说破: "${t}"`); });
-
-  // V9：双高轮不变量（审官+验师V8一致修正）——从“正向凑三件套”改为“弱化词反向否决 + 宽松正向”
-  // 建议句豁免：句中含建议标记词即豁免整句（不只测句首）
-  if (isFirm && responseProse) {
-    const adviceMarks = ['你应该', '你要', '你最好', '我劝你', '建议你', '你得', '你先', '你该', '你千万', '你切记', '你别'];
-    const sentences = responseProse.split(/[。！？；\n]/).map(s => s.trim()).filter(s => s.length > 0);
-    const verdictText = sentences.filter(s => !adviceMarks.some(m => s.includes(m))).join(' ');
-    if (verdictText) {
-      // ① 弱化词反向否决：命中任何弱化/退让词即 FAIL（含糊即破功，无论 skeleton 多完整）
-      const weaken = ['可能', '大概', '多半', '应该', '也许', '或许', '八成', '七成', '有戏', '稳了', '把握', '差不多', '十之八九', '悬', '难说', '不一定', '不好说', '保不齐', '没准儿', '问题不大', '八九不离十', '十拿九稳'];
-      const hitWeak = weaken.filter(w => verdictText.includes(w));
-      if (hitWeak.length > 0) {
-        errors.push(`双高轮不变量: 断语含弱化词 "${hitWeak.join('/')}"，双高轮不得含糊`);
-      } else {
-        // ② 宽松正向：断言 + 线索（时间/对象）至少两类命中，允许隐含（对象可从问询上下文推断）
-        const firmVerbs = ['一定', '必', '能', '会', '可定', '必然', '稳', '准成', '成定了', '板上钉钉', '成', '签', '点头', '走', '调', '遇', '定'];
-        const firmTime = ['今年', '明年', '月底', '下月', '这月', '秋天', '春天', '年底', '三月', '六月', '九月', '十月', '开春', '入秋', '立冬', '这周', '下周', '三个月', '半年', '三天内', '月底前'];
-        const firmObject = ['合同', '款', '那桩事', '这门亲', '这个项目', '这笔生意', '这份差事', '那个位置', '你那位', '这份工作', '这单', '这个坎', '这份运', '对方', '甲方', '他', '她', '那边', '这件事', '那件事', '这事', '这桩'];
-        const hasVerb = firmVerbs.some(w => verdictText.includes(w));
-        const hasTime = firmTime.some(w => verdictText.includes(w));
-        const hasObject = firmObject.some(w => verdictText.includes(w));
-        const hitCnt = [hasVerb, hasTime, hasObject].filter(Boolean).length;
-        if (hitCnt < 2) {
-          const miss = [];
-          if (!hasVerb) miss.push('明确断言');
-          if (!hasTime) miss.push('时间');
-          if (!hasObject) miss.push('对象');
-          errors.push(`双高轮不变量: 断语须含 明确断言+线索(时间/对象) 至少两项（当前缺 ${miss.join('/')}），含糊或线索不足`);
-        }
-      }
-    }
-  }
-
-  // 意象堆砌：全部交离线盲评（脚本不掺和，避免误杀满分句 + 每轮噪音）
-}
-
-// ─── 7. evidence_ids 存在性检查 ───
-if (fusion.conclusions) {
-  for (const c of fusion.conclusions) {
-    if (!c.liuyao_evidence_ids || c.liuyao_evidence_ids.length === 0) {
-      warnings.push(`${c.id}: liuyao_evidence_ids 为空`);
-    }
-    if (!c.qimen_evidence_ids || c.qimen_evidence_ids.length === 0) {
-      warnings.push(`${c.id}: qimen_evidence_ids 为空`);
-    }
-  }
-}
-
-// ─── 输出 ───
-console.log('');
-console.log('═══════════════════════════════════════════');
-console.log('  六爻+奇门融合校验 (V2.0)');
-console.log('═══════════════════════════════════════════');
-console.log(`  schema:  ${fusion.schemaVersion}`);
-console.log(`  question: ${fusion.question?.text || '(无)'}`);
-console.log(`  agreement: ${fusion.agreement?.overall || '(无)'}`);
-console.log(`  conclusions: ${(fusion.conclusions || []).length}`);
-console.log('───────────────────────────────────────────');
-
-if (errors.length === 0 && warnings.length === 0) {
-  console.log('  PASS 校验通过');
-} else {
-  if (errors.length > 0) {
-    console.log(`  FAIL ${errors.length} 个错误:`);
-    for (const e of errors) console.log(`     ✗ ${e}`);
-  }
-  if (warnings.length > 0) {
-    console.log(`  WARN ${warnings.length} 个警告:`);
-    for (const w of warnings) console.log(`     ⚠ ${w}`);
-  }
-}
-
-console.log('═══════════════════════════════════════════');
-console.log('');
-
-process.exit(errors.length > 0 ? 1 : 0);
+try{
+ const args=P.args();
+ if(!args.fusion||!args.response)throw Error('必须提供 --fusion 和 --response');
+ const f=P.readJSON(args.fusion),response=P.readText(args.response);
+ const notes=args.publicNotes?P.readJSON(args.publicNotes):null;
+ const errors=validate(f,response,notes,args.detail||'standard',args);
+ if(errors.length){console.log('[FAIL] '+errors.join('\n'));process.exitCode=1;}
+ else console.log('[PASS] 六爻+奇门详解交付校验通过（来源匹配不等于解读正确或预测准确）');
+}catch(e){console.error('[FAIL] '+e.message);process.exitCode=1;}

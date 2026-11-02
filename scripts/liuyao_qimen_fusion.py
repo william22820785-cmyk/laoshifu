@@ -10,6 +10,7 @@
 """
 import sys, os, json, argparse, shutil, subprocess, tempfile
 from datetime import datetime
+from diagram_render import build_diagram_data
 
 # Windows 控制台可能使用本地代码页；脚本输出统一 UTF-8，避免宿主读取日志乱码。
 if hasattr(sys.stdout, 'reconfigure'):
@@ -142,12 +143,13 @@ def build_liuyao_diagram(pan):
     return "\n".join(lines)
 
 
-def paipan_qimen(y, m, d, h, mi, question, time_zone=8, category='general'):
+def paipan_qimen(y, m, d, h, mi, question, time_zone=8, category='general', time_basis='local'):
     """Call the bundled deterministic Qimen engine and map it to the V4 fusion shape."""
     chart = _run_local_chart('qimen.cjs', [
         f"--question={question}", f"--category={category}",
         f"--year={y}", f"--month={m}", f"--day={d}",
         f"--hour={h}", f"--minute={mi}", f"--timeZone={time_zone}",
+        f"--timeBasis={time_basis}",
     ])
     pan = chart.get('pan', {})
     jushu = pan.get('jushu', {})
@@ -166,104 +168,472 @@ def paipan_qimen(y, m, d, h, mi, question, time_zone=8, category='general'):
         '特殊状态': interpretation.get('特殊状态', []),
         '综合结论': interpretation.get('综合结论', ''),
         'signals': chart.get('signals', {}),
+        'eventTime': chart.get('eventTime', {}),
+        'basisComparison': chart.get('basisComparison', {}),
         'raw_output': chart,
     }
 
-def fuse(question, liuyao, qimen, category='general'):
-    """六爻+奇门双法融合"""
-    agree_points = []
-    conflict_points = []
-    conclusions = []
+LEVEL_RANK = {'none': 0, 'low': 1, 'medium': 2, 'high': 3}
+HEDGE_WORDS = ('大概率', '可能', '也许', '或许', '多半', '不一定', '说不准', '难说', '未必', '倾向于')
+RESIDUAL_WORDS = ('多半', '可能', '取决于', '要看', '不算板上钉钉', '留有余地')
 
-    # 1. 总体吉凶 (六爻)
-    ly_ji_score = 0
-    ly_reasons = []
-    for d in liuyao.get('动爻', []):
-        if d.get('六亲') in ('妻财', '子孙'):
-            ly_ji_score += 1
-            ly_reasons.append('有转机之象')
-        elif d.get('六亲') in ('父母',):
-            ly_ji_score += 0.5
-        elif d.get('六亲') in ('兄弟', '官鬼'):
-            ly_ji_score -= 1
-            ly_reasons.append('阻力较大')
-    ly_tendency = '吉' if ly_ji_score > 0 else ('凶' if ly_ji_score < 0 else '平')
+CATEGORY_SAFETY = {
+    'health': '这次只看压力、节奏和恢复倾向，不能当诊断，身体不适要以专业检查为准。',
+    'legal': '程序和证据的事只作节奏参考，不能替代律师意见和正式期限。',
+    'wealth': '这里只说财路和节奏，不承诺收益，也不点具体标的。',
+    'relationship': '只说关系里的节奏和相处方式，不替你判离婚、复合这类不可逆的事。',
+    'travel': '行程以出票、签证、天气和当地通知为准。',
+    'property': '价格、产权和交付条件要逐项核实，不能只看口头承诺。',
+    'study': '结果以正式评审和截止时间为准。',
+}
 
-    # 总体吉凶 (奇门)
-    qm_gejus = qimen.get('格局分析', [])
-    qm_ji = sum(1 for g in qm_gejus if g.get('吉凶', '') in ['吉', '大吉', '中上'])
-    qm_xiong = sum(1 for g in qm_gejus if g.get('吉凶', '') in ['凶', '大凶', '中下'])
-    qm_tendency = '吉' if qm_ji > qm_xiong else ('凶' if qm_xiong > qm_ji else '平')
+CATEGORY_CONDITIONS = {
+    'career': '把节点、交付物和对方要签的字先落成书面',
+    'relationship': '先把情绪和事实分开，再谈条件',
+    'wealth': '先算清自己能亏多少，再谈能赚多少',
+    'property': '把价格、产权和交付逐项写进合同',
+    'study': '按截止时间倒排准备节点',
+    'travel': '先把票、证件和备用方案定下来',
+    'general': '先把可控的那一步做扎实',
+}
 
-    overall_agree = (ly_tendency == qm_tendency)
-    overall_status = 'same' if overall_agree else ('complementary' if ly_tendency != qm_tendency and ly_tendency != '平' and qm_tendency != '平' else 'conflict')
+# 只有像"要先处理什么"的判据才进条件清单；纯象辞留在断语里，不当作行动项。
+ACTIONABLE_MARKERS = ('空亡', '破', '克', '伏吟', '反吟', '待', '需', '等', '避免', '不宜', '未匹配', '入墓')
 
-    ji_verdict = f'偏{ly_tendency}' if overall_agree else f'角度不同，有{ly_tendency}的压力，也有{qm_tendency}的转圜'
-    ji_delivery = 'firm' if overall_agree and ly_tendency in ('吉', '凶') else 'probable'
 
-    agree_points.append({
-        'dimension': '总体态势',
-        'verdict': ji_verdict,
-        'delivery': ji_delivery,
-        'detail': '',
-    })
+def _text_of(item, *keys):
+    for key in keys:
+        value = item.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ''
 
-    # 2. 时间窗口
-    ri_kong = liuyao.get('日空亡', '')
-    qm_kong = qimen.get('空亡', '')
-    has_kong = bool(ri_kong or qm_kong)
 
-    if has_kong:
-        timing_text = '近期时机未到，事情有虚浮之象，急不得。等条件落定之后转机更明朗。'
-        conclusions.append({
-            'id': 'timing',
-            'appliesTo': question,
-            'verdict': timing_text,
-            'timing': '需等待条件落定',
-            'conditions': ['保持耐心，不急于求成'],
-            'guidance': ['静观其变，不要在这个阶段做重大决定'],
-            'delivery': 'probable' if has_kong else 'firm',
-            'liuyao_evidence_ids': ['time_pattern'],
-            'qimen_evidence_ids': ['time_gate'],
-            'counter_evidence_ids': [],
-            'liuyao_level': 'medium' if ri_kong else 'low',
-            'qimen_level': 'medium' if qm_kong else 'low',
-            'agreement': 'same' if ri_kong and qm_kong else 'complementary',
-        })
+def _has_marker(text, markers):
+    return any(marker in text for marker in markers)
 
-    # 3. 核心结论 (outcome)
-    outcome_verdict, outcome_timing, outcome_conditions, outcome_guidance = build_outcome(
-        question, liuyao, qimen, category, has_kong
+
+# 判据性质分三档：结构性反证（用神被否）、延后（空亡/伏吟一类）、状态偏弱（休囚）。
+# 这三档只决定方向与交付档位，不换算成准确率、成功率或吉凶分。
+SEVERE_MARKERS = ('回头克', '化空', '化退', '月破', '日破', '入墓', '未匹配', '受制', '冲破')
+DELAY_MARKERS = ('空亡', '伏吟', '反吟', '虚象', '推迟', '延期', '停滞')
+MILD_MARKERS = ('休', '囚', '死', '泄', '弱', '受克')
+
+
+def _severity(texts):
+    severe = sum(1 for text in texts if _has_marker(text, SEVERE_MARKERS))
+    delay = sum(1 for text in texts if _has_marker(text, DELAY_MARKERS))
+    mild = sum(1 for text in texts if _has_marker(text, MILD_MARKERS))
+    return severe, delay, mild
+
+
+def _summarize(book, evidence_ids, fallback='本盘未见明确判据'):
+    """挑一条最能说明问题的判据；只有短语时补上它出自哪一爻或哪一宫。"""
+    for evidence_id in evidence_ids:
+        text = book.text_of(evidence_id)
+        if len(text) >= 6:
+            return text
+    if evidence_ids:
+        index = int(evidence_ids[0].split('-')[1]) - 1
+        if 0 <= index < len(book.items):
+            item = book.items[index]
+            return f"{item['label']}{item['text']}"
+    return fallback
+
+
+class EvidenceBook:
+    """收集本次盘面的真实判据，并给每条判据一个有编号、可回指的记录。"""
+
+    def __init__(self, prefix, method_key):
+        self.prefix = prefix
+        self.method_key = method_key
+        self.items = []
+
+    def add(self, kind, label, text):
+        text = (text or '').strip()
+        if not text:
+            return None
+        self.items.append({'kind': kind, 'label': label, 'text': text})
+        return f'{self.prefix}-{len(self.items):02d}'
+
+    @property
+    def evidence(self):
+        return [
+            {
+                'id': f'{self.prefix}-{index + 1:02d}',
+                'system': self.method_key,
+                'label': item['label'],
+                'kind': item['kind'],
+                'sourcePath': f'/methods/{self.method_key}/evidence/items/{index}/text',
+                'value': item['text'],
+            }
+            for index, item in enumerate(self.items)
+        ]
+
+    @property
+    def document(self):
+        return {'items': self.items}
+
+    def text_of(self, evidence_id):
+        if not evidence_id:
+            return ''
+        index = int(evidence_id.split('-')[1]) - 1
+        if 0 <= index < len(self.items):
+            return self.items[index]['text']
+        return ''
+
+
+def read_liuyao(liuyao):
+    """从六爻引擎输出的结构化证据里读判据，不再按问事类别套固定文案。"""
+    chart = liuyao.get('raw_output') or {}
+    analysis = ((chart.get('interpretation') or {}).get('analysis') or {})
+    book = EvidenceBook('ly', 'liuyao')
+
+    selection = analysis.get('selectionFact') or {}
+    selected = analysis.get('selectedCandidate') or {}
+    references = selected.get('references') or []
+    counter_summary = analysis.get('counterSummaryFact') or {}
+    counter_facts = analysis.get('counterEvidenceFacts') or []
+    timing_facts = analysis.get('timingFacts') or []
+    structure_facts = analysis.get('structureFacts') or []
+    line_facts = analysis.get('lineFacts') or []
+
+    useful_id = book.add(
+        '用神', '六爻用神',
+        _text_of(selection, 'promptText') or _text_of(selected, 'promptText')
+        or '本卦未见与问事主题匹配的用神候选',
     )
-    if outcome_verdict:
-        ly_lvl = 'medium' if overall_agree else 'low'
-        qm_lvl = 'medium' if overall_agree else 'low'
-        conclusions.append({
-            'id': 'outcome',
-            'appliesTo': question,
-            'verdict': outcome_verdict,
-            'timing': outcome_timing,
-            'conditions': outcome_conditions,
-            'guidance': outcome_guidance,
-            'delivery': 'firm' if overall_agree and ly_tendency in ('吉', '凶') else 'probable',
-            'liuyao_evidence_ids': ['outcome_analysis'],
-            'qimen_evidence_ids': ['outcome_analysis'],
-            'counter_evidence_ids': [],
-            'liuyao_level': ly_lvl,
-            'qimen_level': qm_lvl,
-            'agreement': 'same' if overall_agree else 'complementary',
-        })
 
-    # 4. soulNote
-    soul_note = build_soul_note(question, ly_tendency, overall_agree)
+    help_ids, hurt_ids = [], []
+    for reference in references[:3]:
+        label = '第{position}爻{relative}{branch}{wuxing}'.format(
+            position=reference.get('position', ''),
+            relative=reference.get('sixRelative', ''),
+            branch=reference.get('branch', ''),
+            wuxing=reference.get('wuxing', ''),
+        )
+        for text in (reference.get('support') or [])[:1]:
+            evidence_id = book.add('得助', label, text)
+            if evidence_id:
+                help_ids.append(evidence_id)
+        for text in (reference.get('constraints') or [])[:1]:
+            evidence_id = book.add('受限', label, text)
+            if evidence_id:
+                hurt_ids.append(evidence_id)
+        changed = reference.get('changedYao') or {}
+        relation = changed.get('relation') or ''
+        if relation:
+            evidence_id = book.add('动变', label + '动变', f'动变关系：{relation}')
+            if evidence_id and _has_marker(relation, ('回头生', '化进')):
+                help_ids.append(evidence_id)
+            if evidence_id and _has_marker(relation, ('回头克', '化空', '化退', '冲')):
+                hurt_ids.append(evidence_id)
+
+    void_present = any(reference.get('isVoid') for reference in references)
+    world = next((item for item in line_facts if '世爻' in (item.get('roles') or [])), None)
+    if world:
+        if world.get('isVoid'):
+            void_present = True
+        for text in (world.get('support') or [])[:1]:
+            evidence_id = book.add('世爻得助', '世爻', text)
+            if evidence_id:
+                help_ids.append(evidence_id)
+        for text in (world.get('constraints') or [])[:1]:
+            evidence_id = book.add('世爻受限', '世爻', text)
+            if evidence_id:
+                hurt_ids.append(evidence_id)
+
+    counter_ids = []
+    for fact in counter_facts[:3]:
+        evidence_id = book.add(
+            '反证', fact.get('candidateLabel') or '反证',
+            _text_of(fact, 'detail') or _text_of(fact, 'promptText'),
+        )
+        if evidence_id:
+            counter_ids.append(evidence_id)
+
+    timing_ids = []
+    for fact in timing_facts[:2]:
+        evidence_id = book.add('应期条件', fact.get('type') or '应期', _text_of(fact, 'promptText'))
+        if evidence_id:
+            timing_ids.append(evidence_id)
+
+    structure_ids = []
+    for fact in structure_facts[:2]:
+        evidence_id = book.add(
+            '卦内结构', fact.get('kind') or '卦内结构',
+            _text_of(fact, 'promptText') or _text_of(fact, 'originalText'),
+        )
+        if evidence_id:
+            structure_ids.append(evidence_id)
+
+    hurt_texts = [book.text_of(evidence_id) for evidence_id in hurt_ids]
+    severe, delay, mild = _severity(hurt_texts)
+    balance = 2 * len(help_ids) - 2 * severe - delay - mild
+    if not references:
+        direction, level = '平', 'low'
+    else:
+        direction = '吉' if balance >= 2 else ('凶' if balance <= -2 else '平')
+        if severe:
+            level = 'low'
+        elif delay or mild >= 2 or void_present:
+            level = 'medium'
+        elif help_ids and direction in ('吉', '凶'):
+            level = 'high'
+        else:
+            level = 'medium'
+
+    support_text = _summarize(book, help_ids, fallback='')
+    limit_text = _summarize(book, hurt_ids, fallback='')
+    if not support_text and not limit_text:
+        support_text = book.text_of(useful_id)
 
     return {
-        'schemaVersion': 'aceworld-liuyao-qimen-fusion.v2',
+        'direction': direction,
+        'level': level,
+        'usefulGod': book.text_of(useful_id),
+        'evidence': book,
+        'helpIds': help_ids,
+        'hurtIds': hurt_ids,
+        'counterIds': counter_ids,
+        'timingIds': timing_ids,
+        'structureIds': structure_ids,
+        'supportText': support_text,
+        'limitText': limit_text,
+        'summary': '；'.join(part for part in (support_text, limit_text) if part) or '本盘未见明确判据',
+    }
+
+
+def read_qimen(qimen):
+    """从奇门盘面的格局、用神与空亡里读判据。"""
+    book = EvidenceBook('qm', 'qimen')
+    signals = qimen.get('signals') or {}
+    geju = qimen.get('格局分析') or []
+    special = qimen.get('特殊状态') or []
+    yong = qimen.get('用神定位') or {}
+    kong = (qimen.get('空亡') or '').strip()
+
+    favorable_ids, risky_ids = [], []
+    for item in geju[:4]:
+        name = _text_of(item, '格局', '名称', '遁格') or '格局'
+        tone = item.get('吉凶') or ''
+        evidence_id = book.add('格局', name, _text_of(item, '含义', 'promptText') or f'{name}（{tone}）')
+        if not evidence_id:
+            continue
+        if tone in ('吉', '大吉', '中上'):
+            favorable_ids.append(evidence_id)
+        elif tone in ('凶', '大凶', '中下'):
+            risky_ids.append(evidence_id)
+
+    for item in special[:3]:
+        problems = item.get('问题')
+        text = problems if isinstance(problems, str) else '、'.join(problems or [])
+        evidence_id = book.add('特殊状态', _text_of(item, '名称') or '特殊状态', text or _text_of(item, 'promptText'))
+        if evidence_id:
+            risky_ids.append(evidence_id)
+
+    for text in (signals.get('warnings') or [])[:2]:
+        evidence_id = book.add('提示', '奇门提示', text)
+        if evidence_id:
+            risky_ids.append(evidence_id)
+
+    zhu = yong.get('主用神') if isinstance(yong.get('主用神'), list) else []
+    fu = yong.get('辅助用神') if isinstance(yong.get('辅助用神'), list) else []
+    useful_parts = []
+    if zhu:
+        useful_parts.append('主用神' + '、'.join(zhu))
+    if fu:
+        useful_parts.append('辅看' + '、'.join(fu))
+    useful_id = book.add(
+        '用神宫', '奇门用神',
+        '；'.join(useful_parts) or _text_of(yong, 'promptText') or '未定位到用神宫',
+    )
+    kong_id = book.add('空亡', '奇门空亡', f'本次盘面空亡：{kong}') if kong else None
+
+    direction_map = {'favorable': '吉', 'unfavorable': '凶', 'mixed': '平'}
+    direction = direction_map.get(signals.get('direction'), '平')
+    strength = signals.get('strength') or 'low'
+    risky_texts = [book.text_of(evidence_id) for evidence_id in risky_ids]
+    severe, delay, mild = _severity(risky_texts)
+    if not geju and not yong and not special:
+        level = 'low'
+    elif severe:
+        level = 'low'
+    elif direction in ('吉', '凶') and favorable_ids and not delay and mild == 0:
+        level = 'high'
+    elif strength in ('high', 'medium') and delay <= 2:
+        level = 'medium'
+    elif favorable_ids or risky_ids:
+        level = 'medium'
+    else:
+        level = 'low'
+
+    support_text = _summarize(book, favorable_ids, fallback='')
+    limit_text = _summarize(book, risky_ids, fallback='')
+    if not limit_text and kong_id:
+        limit_text = book.text_of(kong_id)
+    if not support_text and not limit_text:
+        support_text = book.text_of(useful_id)
+
+    return {
+        'direction': direction,
+        'level': level,
+        'usefulGod': book.text_of(useful_id),
+        'evidence': book,
+        'helpIds': favorable_ids,
+        'hurtIds': risky_ids,
+        'counterIds': [],
+        'timingIds': ([kong_id] if kong_id else []),
+        'structureIds': risky_ids[:1],
+        'supportText': support_text,
+        'limitText': limit_text,
+        'summary': '；'.join(part for part in (support_text, limit_text) if part) or '本盘未见明确判据',
+    }
+
+
+def _overall_status(liuyao_direction, qimen_direction):
+    if liuyao_direction == qimen_direction:
+        return 'same'
+    if {'吉', '凶'} == {liuyao_direction, qimen_direction}:
+        return 'conflict'
+    return 'complementary'
+
+
+def _decide_delivery(ly, qm, status, counter_ids):
+    """双高同向且无同级反证才说死；双中留余地；依据弱或相左如实并列。"""
+    if (
+        ly['level'] == 'high'
+        and qm['level'] == 'high'
+        and status == 'same'
+        and not counter_ids
+        and ly['direction'] in ('吉', '凶')
+    ):
+        return 'firm'
+    if 'low' in (ly['level'], qm['level']) or status == 'conflict' or counter_ids:
+        return 'tentative'
+    return 'probable'
+
+
+def _verdict_text(direction, delivery, ly, qm, category):
+    support = ly['supportText'] or qm['supportText'] or '盘面给了明确指向'
+    limit = ly['limitText'] or qm['limitText'] or CATEGORY_CONDITIONS.get(category, CATEGORY_CONDITIONS['general'])
+    if delivery == 'firm':
+        if direction == '吉':
+            return f'能成。{support}，方向是顺的，这事会往前走。'
+        return f'不成，或者只能成个样子。{limit}，再往上加筹码只会更被动。'
+    if delivery == 'probable':
+        if direction == '吉':
+            return f'多半能成，但不是板上钉钉。{support}；会不会卡住，取决于{limit}。'
+        if direction == '凶':
+            return f'多半不成。{limit}；除非{support}，否则别硬推。'
+        return f'眼下看不出明显一边倒。{support}，同时{limit}，要再看一步。'
+    return (
+        f'两法指向不一致：六爻讲{ly["direction"]}，奇门讲{qm["direction"]}。'
+        f'两种可能都得放上桌——偏成的情形是{support}；偏不成的情形是{limit}。'
+    )
+
+
+def _timing_text(ly, qm):
+    hints = []
+    for evidence_id in ly['timingIds'][:1]:
+        hints.append(ly['evidence'].text_of(evidence_id))
+    for evidence_id in qm['timingIds'][:1]:
+        hints.append(qm['evidence'].text_of(evidence_id))
+    if not hints:
+        return '盘面没给明确应期，先按下一步反馈判断；具体还要看条件是否出现'
+    return '；'.join(hint for hint in hints if hint) + '；具体还要看条件是否出现'
+
+
+def fuse(question, liuyao, qimen, category='general', time_basis='local',
+         desired_outcome='', known_context=None):
+    """六爻+奇门双法融合：两法各出判据，再在同一时基上比方向、定交付口径。"""
+    ly = read_liuyao(liuyao)
+    qm = read_qimen(qimen)
+    known_context = [item for item in (known_context or []) if str(item).strip()]
+
+    status = _overall_status(ly['direction'], qm['direction'])
+    counter_ids = ly['counterIds'] + qm['counterIds']
+    delivery = _decide_delivery(ly, qm, status, counter_ids)
+
+    agree_points = [
+        {
+            'dimension': '总体吉凶',
+            'verdict': f'六爻偏{ly["direction"]}，奇门偏{qm["direction"]}',
+            'delivery': delivery,
+            'detail': f'六爻：{ly["summary"]}；奇门：{qm["summary"]}',
+        }
+    ]
+    conflict_points = []
+    if status == 'conflict':
+        conflict_points.append({
+            'dimension': '总体吉凶',
+            'liuyao': ly['summary'],
+            'qimen': qm['summary'],
+            'resolution': '两法方向相反，如实说明两种可能，不强行统一',
+        })
+
+    conditions = [CATEGORY_CONDITIONS.get(category, CATEGORY_CONDITIONS['general'])]
+    for text in (ly['limitText'], qm['limitText']):
+        if text and len(text) <= 24 and _has_marker(text, ACTIONABLE_MARKERS) \
+                and f'先处理：{text}' not in conditions:
+            conditions.append(f'先处理：{text}')
+    guidance = [CATEGORY_CONDITIONS.get(category, CATEGORY_CONDITIONS['general'])]
+    safety = CATEGORY_SAFETY.get(category, '')
+    if safety:
+        conditions.append(safety)
+
+    conclusions = [
+        {
+            'id': 'outcome',
+            'appliesTo': desired_outcome.strip() or question,
+            'verdict': _verdict_text(ly['direction'] if status != 'conflict' else '平', delivery, ly, qm, category),
+            'timing': _timing_text(ly, qm),
+            'conditions': conditions,
+            'guidance': guidance,
+            'delivery': delivery,
+            'liuyao_evidence_ids': (ly['helpIds'][:2] + ly['hurtIds'][:1]) or ly['structureIds'][:1],
+            'qimen_evidence_ids': (qm['helpIds'][:2] + qm['hurtIds'][:1]) or qm['timingIds'][:1],
+            'counter_evidence_ids': counter_ids[:3],
+            'liuyao_level': ly['level'],
+            'qimen_level': qm['level'],
+            'agreement': status,
+        }
+    ]
+
+    if ly['timingIds'] or qm['timingIds']:
+        conclusions.append({
+            'id': 'timing',
+            'appliesTo': desired_outcome.strip() or question,
+            'verdict': _timing_text(ly, qm),
+            'timing': '以盘内触发条件为准，不锁定具体日期',
+            'conditions': ['等触发条件出现再推进'],
+            'guidance': ['不要在条件未出现前反复催问'],
+            'delivery': 'probable' if (ly['timingIds'] and qm['timingIds']) else 'tentative',
+            'liuyao_evidence_ids': ly['timingIds'][:1],
+            'qimen_evidence_ids': qm['timingIds'][:1],
+            'counter_evidence_ids': [],
+            'liuyao_level': 'medium' if ly['timingIds'] else 'low',
+            'qimen_level': 'medium' if qm['timingIds'] else 'low',
+            'agreement': 'same' if (ly['timingIds'] and qm['timingIds']) else 'complementary',
+        })
+
+    basis = qimen.get('basisComparison') or {}
+    document = {
+        'schemaVersion': 'aceworld-liuyao-qimen-fusion.v3',
         'stage': 'reading',
+        'timeBasis': time_basis,
+        'basisComparison': {
+            'localPillars': basis.get('localPillars', ''),
+            'beijingPillars': basis.get('beijingPillars', ''),
+            'diverges': bool(basis.get('diverges')),
+            'differences': basis.get('differences', []),
+        },
         'question': {
             'text': question,
             'category': category,
             'answerNeed': 'outcome',
+            'desiredOutcome': desired_outcome.strip(),
+            'knownContext': known_context,
         },
         'methods': {
             'liuyao': {
@@ -272,6 +642,9 @@ def fuse(question, liuyao, qimen, category='general'):
                 '动爻': liuyao.get('动爻', []),
                 '世爻': liuyao.get('世爻', {}),
                 '应爻': liuyao.get('应爻', {}),
+                'direction': ly['direction'],
+                'level': ly['level'],
+                'evidence': ly['evidence'].document,
             },
             'qimen': {
                 '局数': qimen.get('局数', ''),
@@ -279,102 +652,38 @@ def fuse(question, liuyao, qimen, category='general'):
                 '值符': qimen.get('值符', ''),
                 '值使': qimen.get('值使', ''),
                 '空亡': qimen.get('空亡', ''),
+                'direction': qm['direction'],
+                'level': qm['level'],
+                'evidence': qm['evidence'].document,
             },
         },
+        'evidence': ly['evidence'].evidence + qm['evidence'].evidence,
         'agreement': {
-            'overall': overall_status,
+            'overall': status,
             'points': agree_points,
             'conflicts': conflict_points,
         },
         'conclusions': conclusions,
-        'diagram': liuyao.get('diagram', ''),
-        'soulNote': soul_note,
+        'diagram': liuyao.get('diagram', ''),  # Legacy audit field, not the new display.
+        'diagramData': build_diagram_data(liuyao['raw_output']),
+        'soulNote': build_soul_note(question, ly['direction'], status == 'same', category),
     }
+    if document['basisComparison']['diverges']:
+        differences = '；'.join(document['basisComparison']['differences'])
+        document['timeBasisDisclosure'] = (
+            f'本次起卦按{time_basis}时基排盘；当地与北京四柱存在差异（{differences}），'
+            '跨时区案例以当地时基为准，边界情形需另行核对。'
+        )
+    return document
 
-
-def build_outcome(question, liuyao, qimen, category, has_kong):
-    """生成核心结论"""
-    verdict = ''
-    timing = ''
-    conditions = []
-    guidance = []
-
-    # 寻物
-    if any(kw in question for kw in ['丢', '找', '遗失', '寻物', '不见了', '在哪']):
-        # 能否找回
-        shi = liuyao.get('世爻', {})
-        ying = liuyao.get('应爻', {})
-        qm_conclusion = qimen.get('综合结论', '')
-        kezhao = '能找到' in qm_conclusion or '寻回希望' in qm_conclusion
-
-        if kezhao:
-            verdict = '东西还在，没有被毁，能找到。但需要花些工夫去找。'
-            timing = '一周内多加留意，尤其在自己常去但不常翻的地方'
-            conditions = ['仔细回想最后见过的时间地点', '检查角落、柜子底部、袋子夹层']
-            guidance = ['不要等，今天就动手找', '先查家里再问身边人']
-        else:
-            verdict = '东西不在原来的地方了，找回有一定难度。但不是完全没有机会。'
-            timing = '一两周内如果还找不到，可能就要做最坏的打算了'
-            conditions = ['先确定最后一次见到的时间和地点', '问一问曾经同行或接触过的人']
-            guidance = ['扩大查找范围，不只局限在一个房间', '准备好替代方案，有备无患']
-
-    # 事业
-    elif any(kw in question for kw in ['工作', '事业', '面试', 'offer', '升职', '跳槽', '职场']):
-        shi = liuyao.get('世爻', {})
-        shi_qin = shi.get('六亲', '')
-        if shi_qin in ('妻财', '子孙'):
-            verdict = '这件事能成，而且比你预想的要顺。'
-            timing = '变化很快会来，本月到三个月内就有消息'
-            conditions = ['保持现在的工作节奏，不要急于表态', '准备好自己，机会来的时候抓得住']
-            guidance = ['安静等待通知，不要频繁催促对方', '自己先整理好思路，想清楚最想要什么']
-        elif shi_qin in ('兄弟', '官鬼'):
-            verdict = '这件事有点阻力，不是不成，是路不太顺。可能要等一等或者换一种方式。'
-            timing = '可能要等上两三个月，中间会有一次反复'
-            conditions = ['不要在一棵树上吊死，多找几条路', '听取身边有经验的人的建议']
-            guidance = ['先稳住心态，不要因为一时不顺就否定自己', '可以考虑调整方向或者降低预期']
-        else:
-            verdict = '眼下不是最好的时机，但也不是最坏的。稳住，别急。'
-            timing = '入秋以后变化会更明显'
-            conditions = ['不要在当前的事情上过度投入']
-            guidance = ['把精力放在自己能控制的事情上']
-
-    # 感情
-    elif any(kw in question for kw in ['感情', '恋爱', '婚姻', '分手', '吵架', '男朋友', '女朋友', '老公', '老婆', '在一起']):
-        verdict = '关系本身没什么大问题，主要是近期的沟通方式和情绪积累。不是你或者对方不好，是这段时间的节奏不对。'
-        timing = '走完这个阶段，自然就松了'
-        conditions = ['先让自己冷静几天，不要把当下的情绪当成结论', '找一个合适的时机，心平气和地聊一次']
-        guidance = ['少说一句伤人的话，比多说一句有用的话更重要', '把重心放回自己身上，关系不是人生的全部']
-
-    # 财运
-    elif any(kw in question for kw in ['财', '钱', '赚', '投资', '股票', '基金']):
-        verdict = '财路在，但财不会自己来找你。要主动，但不要莽撞。'
-        timing = '年内有一次比较明显的进财机会'
-        conditions = ['先把风险和底线算清楚再动', '别把所有资源都压在一个地方']
-        guidance = ['小步快走比一把定输赢更稳妥', '多听多看少冲动']
-
-    # 通用
-    else:
-        if has_kong:
-            verdict = '眼下时机未到，条件还不成熟。但事有转圜余地，不要放弃。'
-            timing = '等条件落定再作判断'
-            conditions = ['保持耐心']
-            guidance = ['做好眼前的事，静待变化']
-        else:
-            verdict = '这件事有它的走向，不必太过担心。做你该做的，剩下交给时间。'
-            timing = '近期就会有变化'
-            conditions = ['保持观察，及时调整']
-            guidance = ['不要因为一时看不清就什么都不做']
-
-    return verdict, timing, conditions, guidance
-
-
-def build_soul_note(question, tendency, overall_agree):
+def build_soul_note(question, tendency, overall_agree, category='general'):
     """生成 soulNote"""
-    if '丢' in question or '找' in question or '遗失' in question:
+    normalized = question.casefold()
+    if any(keyword in normalized for keyword in ('丢', '找', '遗失', 'perdi', 'sumiu', 'encontrar')):
         return '有些东西不是丢了，是暂时藏起来，等你安静下来才能找到。'
-    if '工作' in question or '事业' in question or '面试' in question:
+    if category == 'career' or any(keyword in normalized for keyword in ('工作', '事业', '面试', 'trabalho', 'carreira', 'entrevista')):
         return '你要过的关不是有没有机会，而是愿不愿意离开已经不合身的位置。'
-    if '感情' in question or '恋爱' in question or '分手' in question:
+    if category == 'relationship' or any(keyword in normalized for keyword in ('感情', '恋爱', '分手', 'relacionamento', 'amor', 'separação', 'separacao')):
         return '人有时候也有意思，嘴上说随缘，心里那根绳攥得比谁都紧。'
     if tendency == '吉':
         return '天时在你这边，但地利靠做事，人和靠做人。'
@@ -383,21 +692,334 @@ def build_soul_note(question, tendency, overall_agree):
     return '事在人为，卦只是映照。'
 
 
+VALID_DELIVERIES = ('firm', 'probable', 'tentative')
+VALID_LEVELS = ('none', 'low', 'medium', 'high')
+VALID_STATUS = ('same', 'complementary', 'conflict')
+
+
+def _resolve_pointer(document, pointer):
+    """按 JSON pointer 取回融合文档里的真实字段，用于核对判据编号。"""
+    if not isinstance(pointer, str) or not pointer.startswith('/'):
+        return None
+    value = document
+    for raw in pointer[1:].split('/'):
+        key = raw.replace('~1', '/').replace('~0', '~')
+        if key in ('__proto__', 'prototype', 'constructor'):
+            return None
+        if isinstance(value, list):
+            if not key.isdigit() or int(key) >= len(value):
+                return None
+            value = value[int(key)]
+            continue
+        if not isinstance(value, dict) or key not in value:
+            return None
+        value = value[key]
+    return value
+
+
+def check_document(document):
+    """把交付口径落成可执行校验：说死的档位必须真有两法各自的高强度依据。"""
+    errors = []
+    if document.get('schemaVersion') != 'aceworld-liuyao-qimen-fusion.v3':
+        errors.append('schemaVersion 不匹配')
+    if document.get('timeBasis') not in ('local', 'beijing'):
+        errors.append('timeBasis 必须是 local 或 beijing')
+    comparison = document.get('basisComparison')
+    if not isinstance(comparison, dict):
+        errors.append('basisComparison 缺失')
+    elif comparison.get('diverges') and not str(document.get('timeBasisDisclosure') or '').strip():
+        errors.append('时基存在差异时必须给出 timeBasisDisclosure')
+    question = document.get('question')
+    if not isinstance(question, dict):
+        errors.append('question 缺失')
+    else:
+        for key in ('desiredOutcome', 'knownContext'):
+            if key not in question:
+                errors.append(f'question.{key} 缺失')
+
+    registry = {}
+    for item in document.get('evidence') or []:
+        if not isinstance(item, dict):
+            errors.append('evidence 条目必须是对象')
+            continue
+        evidence_id = item.get('id')
+        if not isinstance(evidence_id, str) or not evidence_id.strip():
+            errors.append('evidence.id 必须非空')
+            continue
+        if evidence_id in registry:
+            errors.append(f'evidence.id 重复：{evidence_id}')
+        registry[evidence_id] = item
+        if item.get('system') not in ('liuyao', 'qimen'):
+            errors.append(f'{evidence_id} system 非法')
+        for key in ('label', 'kind'):
+            if not str(item.get(key) or '').strip():
+                errors.append(f'{evidence_id} {key} 不能为空')
+        actual = _resolve_pointer(document, item.get('sourcePath'))
+        if actual is None:
+            errors.append(f'{evidence_id} sourcePath 无法回指本次盘面')
+        elif actual != item.get('value'):
+            errors.append(f'{evidence_id} value 与盘面字段不一致')
+
+    agreement = document.get('agreement')
+    if not isinstance(agreement, dict) or agreement.get('overall') not in VALID_STATUS:
+        errors.append('agreement.overall 非法')
+        agreement = agreement if isinstance(agreement, dict) else {}
+    points = agreement.get('points') or []
+    if not points:
+        errors.append('agreement.points 不能为空')
+    for index, point in enumerate(points):
+        if not str((point or {}).get('detail') or '').strip():
+            errors.append(f'agreement.points[{index}].detail 不能为空')
+    conflicts = agreement.get('conflicts') or []
+    if agreement.get('overall') == 'same' and conflicts:
+        errors.append('overall=same 但 conflicts 非空')
+
+    conclusions = document.get('conclusions') or []
+    if not 1 <= len(conclusions) <= 4:
+        errors.append('conclusions 需 1..4 条')
+    seen_ids = set()
+    for index, conclusion in enumerate(conclusions):
+        label = f'conclusions[{index}]'
+        if not isinstance(conclusion, dict):
+            errors.append(f'{label} 不是对象')
+            continue
+        if not str(conclusion.get('id') or '').strip() or not str(conclusion.get('verdict') or '').strip():
+            errors.append(f'{label} 缺少 id 或 verdict')
+        if conclusion.get('id') in seen_ids:
+            errors.append('结论 id 重复')
+        seen_ids.add(conclusion.get('id'))
+        delivery = conclusion.get('delivery')
+        if delivery not in VALID_DELIVERIES:
+            errors.append(f'{label} delivery 非法')
+        for key in ('liuyao_level', 'qimen_level'):
+            if conclusion.get(key) not in VALID_LEVELS:
+                errors.append(f'{label} {key} 非法')
+        if conclusion.get('agreement') not in VALID_STATUS:
+            errors.append(f'{label} agreement 非法')
+        for key in ('conditions', 'guidance', 'liuyao_evidence_ids', 'qimen_evidence_ids', 'counter_evidence_ids'):
+            value = conclusion.get(key)
+            if not isinstance(value, list) or any(not isinstance(entry, str) for entry in value):
+                errors.append(f'{label} {key} 必须是字符串数组')
+        referenced = []
+        for key in ('liuyao_evidence_ids', 'qimen_evidence_ids', 'counter_evidence_ids'):
+            referenced.extend(conclusion.get(key) or [])
+        for evidence_id in referenced:
+            if evidence_id not in registry:
+                errors.append(f'{label} 引用了不存在的判据：{evidence_id}')
+
+        liuyao_ids = set(conclusion.get('liuyao_evidence_ids') or [])
+        qimen_ids = set(conclusion.get('qimen_evidence_ids') or [])
+        if liuyao_ids and liuyao_ids == qimen_ids:
+            errors.append(f'{label} 两法引用同一组判据编号，等于没有分别取证')
+        counter = bool(conclusion.get('counter_evidence_ids'))
+        same = agreement.get('overall') == 'same' and conclusion.get('agreement') == 'same'
+        both_high = conclusion.get('liuyao_level') == 'high' and conclusion.get('qimen_level') == 'high'
+        if delivery == 'firm' and not (both_high and same and not counter):
+            errors.append(f'{label} 说死（firm）需两法都 high、方向一致且无反证')
+        if conclusion.get('id') == 'outcome' and both_high and same and not counter and delivery != 'firm':
+            errors.append(f'{label} 双高同向且无反证时应给出 firm')
+        if delivery != 'tentative' and (counter or conclusion.get('agreement') == 'conflict'):
+            errors.append(f'{label} 存在反证或方向相左时应降为 tentative')
+        if delivery == 'probable' and 'low' in (conclusion.get('liuyao_level'), conclusion.get('qimen_level')):
+            errors.append(f'{label} 任一法为 low 时不得给出 probable')
+
+        verdict = conclusion.get('verdict') or ''
+        if delivery == 'firm' and _has_marker(verdict, HEDGE_WORDS):
+            errors.append(f'{label} 说死档不得出现含糊措辞')
+        if delivery == 'probable' and not _has_marker(verdict, RESIDUAL_WORDS):
+            errors.append(f'{label} 留余地档必须写出余地或条件')
+        if delivery == 'tentative' and '两种' not in verdict:
+            errors.append(f'{label} 依据弱或相左时必须并列两种可能')
+    return errors
+
+
+def run_self_test():
+    """固定输入回归：验证分级、交付门禁、判据回指与时基披露。"""
+    cases = [
+        {
+            'question': '月底前甲方会不会签下这份合同', 'category': 'career',
+            'method': 'numbers', 'numbers': [12, 35, 8], 'year': 2026, 'month': 8,
+            'day': 29, 'hour': 15, 'minute': 0, 'time_zone': 8, 'time_basis': 'local',
+            'desired_outcome': '确认月底前能否签约',
+        },
+        {
+            'question': '这笔钱年内能不能回笼', 'category': 'wealth',
+            'method': 'numbers', 'numbers': [3, 7, 9], 'year': 2026, 'month': 8,
+            'day': 29, 'hour': 9, 'minute': 20, 'time_zone': -3, 'time_basis': 'local',
+            'desired_outcome': '',
+        },
+        {
+            'question': '这个月要不要换工作', 'category': 'career',
+            'method': 'time', 'numbers': None, 'year': 2026, 'month': 9,
+            'day': 20, 'hour': 10, 'minute': 30, 'time_zone': -3, 'time_basis': 'beijing',
+            'desired_outcome': '',
+        },
+    ]
+    failures = 0
+    for case in cases:
+        dt = datetime(case['year'], case['month'], case['day'], case['hour'], case['minute'])
+        liuyao = paipan_liuyao(
+            dt, method=case['method'], numbers=case['numbers'],
+            time_zone=case['time_zone'], category=case['category'], question=case['question'],
+        )
+        qimen = paipan_qimen(
+            case['year'], case['month'], case['day'], case['hour'], case['minute'],
+            case['question'], time_zone=case['time_zone'], category=case['category'],
+            time_basis=case['time_basis'],
+        )
+        document = fuse(
+            case['question'], liuyao, qimen, category=case['category'],
+            time_basis=case['time_basis'], desired_outcome=case['desired_outcome'],
+        )
+        errors = check_document(document)
+        name = f"{case['category']}/{case['method']}/tz{case['time_zone']}/{case['time_basis']}"
+        if errors:
+            failures += 1
+            print(f'[FAIL] {name}')
+            for error in errors:
+                print(f'       {error}')
+        else:
+            delivery = document['conclusions'][0]['delivery']
+            ly_level = document['conclusions'][0]['liuyao_level']
+            qm_level = document['conclusions'][0]['qimen_level']
+            print(f'[PASS] {name} delivery={delivery} liuyao={ly_level} qimen={qm_level} '
+                  f'evidence={len(document["evidence"])} conflicts={len(document["agreement"]["conflicts"])}')
+    if failures:
+        print(f'[FAIL] {failures}/{len(cases)} 个用例未通过')
+    else:
+        print(f'[PASS] {len(cases)}/{len(cases)} 个盘面用例通过')
+    return failures + _rule_case_tests()
+
+
+def _synthetic_document(liuyao_level, qimen_level, liuyao_direction, qimen_direction,
+                        with_counter=False, force_delivery=None):
+    """手搓一份最小但结构完整的融合文档，用来验证交付门禁本身。"""
+    status = _overall_status(liuyao_direction, qimen_direction)
+    counter_ids = ['ly-03'] if with_counter else []
+    delivery = force_delivery or _decide_delivery(
+        {'level': liuyao_level, 'direction': liuyao_direction},
+        {'level': qimen_level, 'direction': qimen_direction},
+        status, counter_ids,
+    )
+    verdict = _verdict_text(
+        liuyao_direction if status != 'conflict' else '平', delivery,
+        {'supportText': '用神临世得月建', 'limitText': '用神月破', 'direction': liuyao_direction},
+        {'supportText': '开门临用神宫', 'limitText': '用神宫空亡', 'direction': qimen_direction},
+        'career',
+    )
+    return {
+        'schemaVersion': 'aceworld-liuyao-qimen-fusion.v3',
+        'stage': 'reading',
+        'timeBasis': 'local',
+        'basisComparison': {'localPillars': '丙午 丁酉 丁酉 乙巳', 'beijingPillars': '丙午 丁酉 丁酉 辛亥',
+                            'diverges': False, 'differences': []},
+        'question': {'text': '月底前这份合同签得成吗', 'category': 'career', 'answerNeed': 'outcome',
+                     'desiredOutcome': '', 'knownContext': []},
+        'methods': {
+            'liuyao': {'direction': liuyao_direction, 'level': liuyao_level,
+                       'evidence': {'items': [{'kind': '用神', 'label': '用神', 'text': '用神临世得月建'},
+                                              {'kind': '反证', 'label': '反证', 'text': '用神月破'}]}},
+            'qimen': {'direction': qimen_direction, 'level': qimen_level,
+                      'evidence': {'items': [{'kind': '格局', 'label': '格局', 'text': '开门临用神宫'}]}},
+        },
+        'evidence': [
+            {'id': 'ly-01', 'system': 'liuyao', 'label': '用神', 'kind': '用神',
+             'sourcePath': '/methods/liuyao/evidence/items/0/text', 'value': '用神临世得月建'},
+            {'id': 'qm-01', 'system': 'qimen', 'label': '格局', 'kind': '格局',
+             'sourcePath': '/methods/qimen/evidence/items/0/text', 'value': '开门临用神宫'},
+            {'id': 'ly-03', 'system': 'liuyao', 'label': '反证', 'kind': '反证',
+             'sourcePath': '/methods/liuyao/evidence/items/1/text', 'value': '用神月破'},
+        ],
+        'agreement': {
+            'overall': status,
+            'points': [{'dimension': '总体吉凶', 'verdict': f'六爻偏{liuyao_direction}，奇门偏{qimen_direction}',
+                        'delivery': delivery, 'detail': '六爻：用神临世得月建；奇门：开门临用神宫'}],
+            'conflicts': ([{'dimension': '总体吉凶', 'liuyao': '用神临世得月建', 'qimen': '用神宫空亡',
+                            'resolution': '两法方向相反，如实说明两种可能'}]
+                          if status == 'conflict' else []),
+        },
+        'conclusions': [{
+            'id': 'outcome', 'appliesTo': '月底前这份合同签得成吗', 'verdict': verdict,
+            'timing': '盘面没给明确应期；具体还要看条件是否出现',
+            'conditions': ['把节点和交付物落成书面'], 'guidance': ['先把可控的那一步做扎实'],
+            'delivery': delivery,
+            'liuyao_evidence_ids': ['ly-01'], 'qimen_evidence_ids': ['qm-01'],
+            'counter_evidence_ids': counter_ids,
+            'liuyao_level': liuyao_level, 'qimen_level': qimen_level, 'agreement': status,
+        }],
+    }
+
+
+def _rule_case_tests():
+    """三档交付各自可达，且门禁能挡住不该说死的盘子。"""
+    failures = 0
+
+    def report(name, errors, expect_clean=True):
+        nonlocal failures
+        ok = (not errors) if expect_clean else bool(errors)
+        print(f'[{"PASS" if ok else "FAIL"}] rule/{name}')
+        if not ok:
+            failures += 1
+            for error in errors[:6]:
+                print(f'       {error}')
+
+    firm_doc = _synthetic_document('high', 'high', '吉', '吉')
+    report('双高同向→说死', check_document(firm_doc))
+    report('双高交付应为firm', [] if firm_doc['conclusions'][0]['delivery'] == 'firm'
+           else ['双高同向却未给出 firm'], expect_clean=True)
+
+    probable_doc = _synthetic_document('medium', 'medium', '吉', '吉')
+    report('双中留余地', check_document(probable_doc))
+    report('双中交付应为probable', [] if probable_doc['conclusions'][0]['delivery'] == 'probable'
+           else ['双中未给出 probable'], expect_clean=True)
+
+    conflict_doc = _synthetic_document('high', 'high', '吉', '凶')
+    report('两法相左→并列两种可能', check_document(conflict_doc))
+    report('相左交付应为tentative', [] if conflict_doc['conclusions'][0]['delivery'] == 'tentative'
+           else ['相左未给出 tentative'], expect_clean=True)
+
+    counter_doc = _synthetic_document('high', 'high', '吉', '吉', with_counter=True)
+    report('有反证不得说死', check_document(counter_doc))
+
+    bad_doc = _synthetic_document('medium', 'medium', '吉', '吉', force_delivery='firm')
+    report('双中不得说死（应被拦下）', check_document(bad_doc), expect_clean=False)
+
+    bad_voice = _synthetic_document('high', 'high', '吉', '吉')
+    bad_voice['conclusions'][0]['verdict'] = '多半能成。用神临世得月建。'
+    report('说死档不得含糊（应被拦下）', check_document(bad_voice), expect_clean=False)
+
+    if not failures:
+        print('[PASS] 交付档位回归全部通过')
+    return failures
+
+
 def main():
     parser = argparse.ArgumentParser(description='六爻+奇门双法融合算事')
-    parser.add_argument('--question', required=True, help='所问之事')
+    parser.add_argument('--question', help='所问之事')
     parser.add_argument('--category', default='general', choices=['general','relationship','career','wealth','health','legal','study','travel','property'], help='问事类别')
     parser.add_argument('--method', default='time', choices=['time', 'numbers'])
     parser.add_argument('--numbers', help='报数起卦的三个数，逗号分隔')
-    parser.add_argument('--year', type=int, required=True)
-    parser.add_argument('--month', type=int, required=True)
-    parser.add_argument('--day', type=int, required=True)
-    parser.add_argument('--hour', type=int, required=True)
+    parser.add_argument('--year', type=int)
+    parser.add_argument('--month', type=int)
+    parser.add_argument('--day', type=int)
+    parser.add_argument('--hour', type=int)
     parser.add_argument('--minute', type=int, default=0)
     parser.add_argument('--timeZone', type=int, default=8)
+    parser.add_argument('--timeBasis', dest='timeBasis', default='local', choices=['local', 'beijing'], help='起卦时基：local=用户所在地，beijing=北京时')
+    parser.add_argument('--desiredOutcome', dest='desiredOutcome', default='', help='用户想确认的具体结果')
+    parser.add_argument('--knownContext', dest='knownContext', action='append', default=[], help='用户明确说过的现实背景，可重复')
     parser.add_argument('--output', default='fusion.json')
+    parser.add_argument('--self-test', dest='self_test', action='store_true', help='跑固定输入回归，验证分级与交付门禁')
 
     args = parser.parse_args()
+    if args.self_test:
+        sys.exit(run_self_test())
+    if not args.question:
+        parser.error('需要 --question，或用 --self-test 跑回归')
+    for field in ('year', 'month', 'day', 'hour'):
+        if getattr(args, field) is None:
+            parser.error(f'缺少 --{field}')
+
     dt = datetime(args.year, args.month, args.day, args.hour, args.minute)
 
     # 解析报数
@@ -415,17 +1037,30 @@ def main():
     # 1. 六爻排盘
     liuyao = paipan_liuyao(dt, method=args.method, numbers=numbers, time_zone=args.timeZone, category=args.category, question=args.question)
 
-    # 2. 奇门排盘+解盘
-    qimen = paipan_qimen(args.year, args.month, args.day, args.hour, args.minute, args.question, time_zone=args.timeZone, category=args.category)
+    # 2. 奇门排盘+解盘（与六爻同一时基）
+    qimen = paipan_qimen(args.year, args.month, args.day, args.hour, args.minute, args.question,
+                         time_zone=args.timeZone, category=args.category, time_basis=args.timeBasis)
 
     # 3. 融合
-    result = fuse(args.question, liuyao, qimen, category=args.category)
+    result = fuse(args.question, liuyao, qimen, category=args.category, time_basis=args.timeBasis,
+                  desired_outcome=args.desiredOutcome, known_context=args.knownContext)
+
+    errors = check_document(result)
+    if errors:
+        for error in errors:
+            print(f"[FAIL] {error}", file=sys.stderr)
+        sys.exit(1)
 
     # 写入结果
     with open(args.output, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
 
+    primary = result['conclusions'][0]
     print(f"Fusion complete → {args.output}")
+    print(f"  时基: {result['timeBasis']}（当地四柱 {result['basisComparison']['localPillars']} / 北京 {result['basisComparison']['beijingPillars']}）")
+    print(f"  六爻: {result['methods']['liuyao']['direction']}/{result['methods']['liuyao']['level']}"
+          f"  奇门: {result['methods']['qimen']['direction']}/{result['methods']['qimen']['level']}"
+          f"  → {primary['delivery']}")
     print(f"  Agree points: {len(result['agreement']['points'])}")
     print(f"  Conflict points: {len(result['agreement']['conflicts'])}")
     print(f"  Conclusions: {len(result['conclusions'])}")

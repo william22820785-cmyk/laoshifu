@@ -20,15 +20,10 @@
 
 const fs = require('fs');
 const path = require('path');
+const P = require('./presentation-policy.cjs');
+const {evaluate} = require('./dual-review.cjs');
 
-function parseArgs() {
-  const args = {};
-  process.argv.slice(2).forEach(arg => {
-    const m = arg.match(/^--(\w+)=(.+)$/);
-    if (m) args[m[1]] = m[2];
-  });
-  return args;
-}
+function parseArgs() { return P.args(); }
 
 function loadJSON(filepath) {
   if (!fs.existsSync(filepath)) {
@@ -47,21 +42,7 @@ function loadText(filepath) {
 }
 
 // 黑盒禁止词（问询与答复都查）
-const BLOCKED_TERMS = [
-  // 后台体系名
-  '六爻', '奇门', '八字', '紫微', '紫微斗数',
-  // 推断术语
-  '四柱', '十神', '格局', '旺衰', '星曜', '宫位', '四化',
-  '用神', '忌神', '仇神', '闲神',
-  '九宫', '空亡', '值符', '值使',
-  // 内部流程
-  'evidence', '权重', '分数', '内部等级', '算法版本',
-  '两张盘', '两个系统', '双法同参', '交叉验证',
-  '后台', '推断链', '推断结构',
-  // SKILL配置泄露
-  'skill-root', 'node <skill-root>', 'chart.cjs', 'validate',
-  'consultation-plan', 'chart.json', 'fusion.json',
-];
+const BLOCKED_TERMS = P.INTERNAL_TERMS;
 
 // 不允许的报告腔（问询与答复都查）
 const REPORT_PATTERNS = [
@@ -125,81 +106,21 @@ function checkInquiry(text) {
 }
 
 // ─── checkResponse：查全量（黑盒 + 报告腔 + 权威 + 江湖负向红线）───
-function checkResponse(text, meta) {
-  const issues = [];
-
-  // 基础黑盒/报告腔/权威（与原先一致）
-  BLOCKED_TERMS.forEach(term => { if (text.includes(term)) issues.push(`泄露术语: "${term}"`); });
-  REPORT_PATTERNS.forEach(pat => { if (text.includes(pat)) issues.push(`报告腔: "${pat}"`); });
-  AUTHORITY_PATTERNS.forEach(pat => { if (text.includes(pat)) issues.push(`权威套话: "${pat}"`); });
-
-  // 江湖黑话
-  BLACKTALK_TERMS.forEach(term => { if (text.includes(term)) issues.push(`江湖黑话: "${term}"`); });
-
-  // 假定现场
-  SCENE_TERMS.forEach(term => { if (text.includes(term)) issues.push(`假定现场: "${term}"`); });
-
-  // 拍胸脯变体
-  BRAG_TERMS.forEach(term => { if (text.includes(term)) issues.push(`自报资历/拍胸脯: "${term}"`); });
-
-  // 行规说破
-  RULE_SPOKEN_PATTERNS.forEach(pat => { if (text.includes(pat)) issues.push(`行规说破: "${pat}"`); });
-
-  // 退让/含糊：V7 降级为“双高轮断语行为准则”（reference 强约束）+ 盲评抽检，脚本不拦。
-  // 意象堆砌：全部交离线盲评（脚本不掺和，避免误杀满分句 + 每轮噪音）。
-
-  // V9：双高轮不变量（审官+验师V8一致修正）——弱化词反向否决 + 宽松正向（至少两项）
-  // 建议句豁免：句中含建议标记词即豁免整句（不只测句首）
-  if (meta && meta.isFirm === true && text) {
-    const adviceMarks = ['你应该', '你要', '你最好', '我劝你', '建议你', '你得', '你先', '你该', '你千万', '你切记', '你别'];
-    // 剔除建议句，只留断语正文做不变量检查
-    const sentences = text.split(/[。！？；\n]/).map(s => s.trim()).filter(s => s.length > 0);
-    const verdictText = sentences.filter(s => !adviceMarks.some(m => s.includes(m))).join(' ');
-    if (verdictText) {
-      // ① 弱化词反向否决：命中任何弱化/退让词即 FAIL（含糊即破功，无论 skeleton 多完整）
-      const weaken = ['可能', '大概', '多半', '应该', '也许', '或许', '八成', '七成', '有戏', '稳了', '把握', '差不多', '十之八九', '悬', '难说', '不一定', '不好说', '保不齐', '没准儿', '问题不大', '八九不离十', '十拿九稳'];
-      const hitWeak = weaken.filter(w => verdictText.includes(w));
-      if (hitWeak.length > 0) {
-        issues.push(`双高轮不变量: 断语含弱化词 "${hitWeak.join('/')}"，直断轮不得含糊`);
-      } else {
-        // ② 宽松正向：断言 + 线索（时间/对象）至少两类命中，允许隐含（对象可从问询上下文推断）
-        const firmVerbs = ['一定', '必', '能', '会', '可定', '必然', '稳', '准成', '成定了', '板上钉钉', '成', '签', '点头', '走', '调', '遇', '定'];
-        const firmTime = ['今年', '明年', '月底', '下月', '这月', '秋天', '春天', '年底', '三月', '六月', '九月', '十月', '开春', '入秋', '立冬', '这周', '下周', '三个月', '半年', '三天内', '月底前'];
-        const firmObject = ['合同', '款', '那桩事', '这门亲', '这个项目', '这笔生意', '这份差事', '那个位置', '你那位', '这份工作', '这单', '这个坎', '这份运', '对方', '甲方', '他', '她', '那边', '这件事', '那件事', '这事', '这桩'];
-        const hasVerb = firmVerbs.some(w => verdictText.includes(w));
-        const hasTime = firmTime.some(w => verdictText.includes(w));
-        const hasObject = firmObject.some(w => verdictText.includes(w));
-        const hitCnt = [hasVerb, hasTime, hasObject].filter(Boolean).length;
-        if (hitCnt < 2) {
-          const miss = [];
-          if (!hasVerb) miss.push('明确断言');
-          if (!hasTime) miss.push('时间');
-          if (!hasObject) miss.push('对象');
-          issues.push(`双高轮不变量: 断语须含 明确断言+线索(时间/对象) 至少两项（当前缺 ${miss.join('/')}），含糊或线索不足`);
-        }
-      }
-    }
+function checkResponse(text, meta, detail='standard') {
+  const issues = P.textIssues(text, detail);
+  for (const term of [...BLACKTALK_TERMS, ...SCENE_TERMS, ...BRAG_TERMS, ...RULE_SPOKEN_PATTERNS]) {
+    if (text.includes(term)) issues.push('不合适的角色表述: ' + term);
   }
-
-  // 字数（算人场景 ≤520）
-  if (text.length > 600) {
-    issues.push(`答复过长 (${text.length} 字符，建议 ≤520)`);
-  }
-
-  // 标题/项目符号
-  if (/^#{1,3}\s/m.test(text)) issues.push('使用了 Markdown 标题');
-  if (/^\s*[-*]\s/m.test(text) || /^\s*\d+[.)]\s/m.test(text)) issues.push('使用了项目符号/编号列表');
-
   return issues;
 }
 
-function validatePlan(chart, plan) {
+function validatePlan(chart, plan, reviewed = false) {
   const issues = [];
   if (!plan || typeof plan !== 'object' || Array.isArray(plan)) {
     issues.push('plan 必须是对象');
     return issues;
   }
-  if (!chart.interpretation || !Array.isArray(chart.interpretation.evidence)) {
+  if (!P.plain(chart) || !chart.interpretation || !Array.isArray(chart.interpretation.evidence)) {
     issues.push('chart.json 缺少 interpretation.evidence');
     return issues;
   }
@@ -258,15 +179,13 @@ function validatePlan(chart, plan) {
       && conclusion.bazi_level === 'high'
       && conclusion.ziwei_level === 'high'
       && counters.length === 0;
-    if (isDoubleHigh && conclusion.delivery !== 'direct') {
+    if (!reviewed && isDoubleHigh && conclusion.delivery !== 'direct') {
       issues.push(`${label}: 双高同断且无反证时 delivery 必须为 direct`);
     }
     if (conclusion.delivery === 'direct') {
       if (!isDoubleHigh) issues.push(`${label}: direct 只允许用于双高同断且无反证的结论`);
-      const verdict = conclusion.verdict || '';
-      const weak = ['可能', '大概', '多半', '应该', '也许', '或许', '八成', '七成', '有戏', '悬', '难说', '不一定'];
-      const hitWeak = weak.filter(word => verdict.includes(word));
-      if (hitWeak.length) issues.push(`${label}.verdict 含退让词: ${hitWeak.join('/')}`);
+      // direct 描述主判断表达方式，不是对现实结果的保证。
+
     }
   });
   return issues;
@@ -278,6 +197,9 @@ function derivePlanFirm(plan) {
 }
 function main() {
   const args = parseArgs();
+  if (args.review && (!args.chart || !args.plan || !args.response || args.inquiry)) {
+    throw Error('--review 必须同时提供 --chart、--plan、--response，且不能用于 inquiry');
+  }
 
   // --inquiry 模式：只校验询问文本（只查黑盒，不查退让/意象/现场）
   if (args.inquiry) {
@@ -302,10 +224,19 @@ function main() {
   }
 
   let plan = null;
+  let chart = null;
   if (args.chart && args.plan) {
-    const chart = loadJSON(args.chart);
+    chart = loadJSON(args.chart);
     plan = loadJSON(args.plan);
-    const issues = validatePlan(chart, plan);
+    if (args.review) {
+      const result = evaluate(chart, loadJSON(args.review), {kind:'birth', sourcePath:args.chart, response:loadText(args.response), plan});
+      if (result.errors.length) {
+        console.error('[FAIL] ' + result.errors.join('\n'));
+        process.exitCode = 1;
+        return;
+      }
+    }
+    const issues = validatePlan(chart, plan, Boolean(args.review));
     allIssues.push(...issues);
     if (issues.length === 0) console.log('[OK] plan validated against chart');
   }
@@ -327,7 +258,9 @@ function main() {
     if (plan && meta) {
       meta = { ...meta, isFirm: derivePlanFirm(plan) || meta.isFirm === true };
     }
-    const issues = checkResponse(text, meta);
+    const issues = checkResponse(text, meta, args.detail || 'standard');
+    const notes = args.publicNotes ? P.readJSON(args.publicNotes) : null;
+    issues.push(...P.noteIssues(text, chart, notes));
     allIssues.push(...issues);
     if (issues.length === 0) console.log('[OK] response validated');
   }
@@ -342,4 +275,4 @@ function main() {
   }
 }
 
-main();
+try { main(); } catch (e) { console.error('[FAIL] ' + e.message); process.exitCode = 1; }

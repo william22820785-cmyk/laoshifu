@@ -16,7 +16,13 @@ chart_bazi_ziwei.py — 复用 bazi-ziwei-skill 的权威八字+紫微排盘，�
 """
 import sys, os, json, argparse, subprocess, shutil
 from datetime import datetime
+from pathlib import Path
 import os
+try:
+    from birth_location import resolve_birthplace, true_solar_time, utc_offset_hours
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from birth_location import resolve_birthplace, true_solar_time, utc_offset_hours
 
 # run-chart.js 路径解析：优先包内自包含引擎(engine/)，回退到开发环境 bazi-ziwei-skill
 _SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # skill 根目录
@@ -53,24 +59,79 @@ def parse_args():
     p.add_argument('--hour', type=int, required=True)
     p.add_argument('--minute', type=int, default=0)
     p.add_argument('--gender', default='male')
-    p.add_argument('--calendar', default='solar')
-    p.add_argument('--timeZone', type=int, default=8)
+    p.add_argument('--calendar', choices=['solar','lunar'], default='solar')
+    p.add_argument('--isLeapMonth', choices=['true','false'], default='false')
+    p.add_argument('--verifyPillars', default=None)
+    p.add_argument('--timeZone', type=float, default=8)
+    p.add_argument('--market', choices=['cn', 'international'], default='cn')
+    p.add_argument('--birthPlace', default=None)
+    p.add_argument('--birthTimezone', default=None)
+    p.add_argument('--longitude', type=float, default=None)
+    p.add_argument('--latitude', type=float, default=None)
+    p.add_argument('--trueSolarTime', choices=['true', 'false'], default='false')
     p.add_argument('--currentYear', type=int, default=datetime.now().year)
     p.add_argument('--output', default='chart.json')
     return p.parse_args()
 
 
+def normalized_solar_input(args):
+    """Normalize lunar input ONCE, then send identical solar values to both engines."""
+    leap = getattr(args, 'isLeapMonth', 'false') == 'true'
+    if leap and args.calendar != 'lunar':
+        raise ValueError('闰月只用于农历输入')
+    if args.calendar != 'lunar':
+        return {'year': args.year, 'month': args.month, 'day': args.day}
+    module = str(Path(__file__).resolve().parents[1] / 'engine/calculator/node_modules/lunar-typescript')
+    script = """const {Lunar}=require(process.argv[1]);
+const v=JSON.parse(process.argv[2]);
+const s=Lunar.fromYmdHms(v.y,v.leap?-v.m:v.m,v.d,v.h,v.min,0).getSolar();
+process.stdout.write(JSON.stringify({year:s.getYear(),month:s.getMonth(),day:s.getDay()}));"""
+    r = subprocess.run([_node_command(), '-e', script, module,
+                        json.dumps({'y':args.year,'m':args.month,'d':args.day,'h':args.hour,'min':args.minute,'leap':leap})],
+                       capture_output=True, text=True, encoding='utf-8', timeout=30)
+    if r.returncode != 0:
+        raise ValueError('农历日期或闰月无效：' + r.stderr[:300])
+    return json.loads(r.stdout)
+
+
 def call_run_chart(args):
-    """调用 bazi-ziwei-skill 的 run-chart.js，返回解析后的 JSON"""
+    solar = normalized_solar_input(args)
+    civil_time = datetime(
+        solar['year'], solar['month'], solar['day'], args.hour, args.minute,
+    )
+    location_meta = None
+    effective_time = civil_time
+    engine_time_zone = args.timeZone
+    if args.market == 'international':
+        if args.trueSolarTime != 'true':
+            raise ValueError('海外命盘必须启用真太阳时')
+        location = resolve_birthplace(
+            args.birthPlace,
+            timezone_id=args.birthTimezone,
+            longitude=args.longitude,
+            latitude=args.latitude,
+        )
+        engine_time_zone = utc_offset_hours(civil_time, location)
+        effective_time, location_meta = true_solar_time(civil_time, location)
     cmd = [_node_command(), BAZI_ZIWEI_RUN,
-           f'--year={args.year}', f'--month={args.month}', f'--day={args.day}',
-           f'--hour={args.hour}', f'--minute={args.minute}', f'--gender={args.gender}']
-    if args.calendar == 'lunar':
-        cmd.append('--isLunar=true')
-    r = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+           f'--year={effective_time.year}', f'--month={effective_time.month}', f'--day={effective_time.day}',
+           f'--hour={effective_time.hour}', f'--minute={effective_time.minute}', f'--gender={args.gender}',
+           f'--timeZone={engine_time_zone}']
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='strict', timeout=60)
     if r.returncode != 0:
         raise RuntimeError(f"run-chart.js 失败: {r.stderr[:500]}")
-    return json.loads(r.stdout)
+    result = json.loads(r.stdout)
+    result['_normalizedSolarInput'] = solar
+    result['_birthTime'] = {
+        'market': args.market,
+        'birthPlace': args.birthPlace,
+        'civilLocalTime': civil_time.isoformat(),
+        'effectiveLocalTime': effective_time.isoformat(),
+        'trueSolarTimeApplied': args.market == 'international',
+        'timeZone': engine_time_zone,
+        'location': location_meta,
+    }
+    return result
 
 
 def build_evidence(rc):
@@ -101,7 +162,7 @@ def build_evidence(rc):
     ws = enr.get('旺衰', {})
     if ws.get('verdict'):
         evidence.append({'id': f'E{str(idn).zfill(3)}', 'category': 'profile',
-            'description': f'日主{day_gan}水旺衰{ws["verdict"]}（{ws.get("confidence","中")}）', 'strength': 'medium'})
+            'description': f'日主{day_gan}{day_el}旺衰{ws["verdict"]}（{ws.get("confidence","中")}）', 'strength': 'medium'})
         idn += 1
 
     # 4. 财星（十神分布判断）
@@ -147,6 +208,10 @@ def build_chart(args):
                      f"{sp['day']['gan']}{sp['day']['zhi']} {sp['hour']['gan']}{sp['hour']['zhi']}",
     }
 
+    expected = getattr(args, 'verifyPillars', None)
+    if expected and ''.join(expected.split()) != ''.join(pillars['formatted'].split()):
+        raise ValueError('输入四柱与排盘不一致，请核对历法、日期与时辰')
+
     # 十神
     sh = bz.get('shiShen', {})
     shi_shen = {'year': sh.get('year'), 'month': sh.get('month'), 'hour': sh.get('hour')}
@@ -166,7 +231,7 @@ def build_chart(args):
     # 当前流年
     currentYear = {
         'year': args.currentYear,
-        'age': args.currentYear - args.year,
+        'age': args.currentYear - rc['_normalizedSolarInput']['year'],
         'liunian': None,
     }
 
@@ -174,7 +239,18 @@ def build_chart(args):
         'meta': {
             'generatedAt': datetime.now().isoformat(),
             'calendar': args.calendar,
-            'timeZone': args.timeZone,
+            'normalizedSolarInput': rc['_normalizedSolarInput'],
+            'isLeapMonth': getattr(args, 'isLeapMonth', 'false') == 'true',
+            'timeZoneConvention': (
+                'International mode resolves birthplace timezone and longitude, applies historical local UTC offset '
+                'and true solar time before calculation; solar-term boundary cases still require disclosure.'
+                if args.market == 'international'
+                else 'Birth clock fields are used as supplied after lunar-to-solar conversion; timezone offset is recorded, not used to localize solar terms. Non-UTC+8 boundary cases require separate verification.'
+            ),
+            'timeZone': rc['_birthTime']['timeZone'],
+            'market': args.market,
+            'birthPlace': args.birthPlace,
+            'birthTime': rc['_birthTime'],
             'gender': args.gender,
             'input': {'year': args.year, 'month': args.month, 'day': args.day,
                       'hour': args.hour, 'minute': args.minute},
@@ -203,4 +279,7 @@ def build_chart(args):
 
 
 if __name__ == '__main__':
+    import sys
+    if hasattr(sys.stdout, 'reconfigure'): sys.stdout.reconfigure(encoding='utf-8')
+    if hasattr(sys.stderr, 'reconfigure'): sys.stderr.reconfigure(encoding='utf-8')
     build_chart(parse_args())
