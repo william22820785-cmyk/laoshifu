@@ -3,4 +3,4 @@ interface:
   short_description: "先看示例；八字紫微看人，六爻奇门问事，双法综合讲清依据。"
   default_prompt: "使用 $laoshifu。老师傅，我有件事想问。先听清我在问什么，资料缺了再问；排出盘后，把你怎么看的讲给我听。该细讲就细讲，我只追问一点时别重讲整篇。不要套话，不编盘，也别保证一定应验。"
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false
