@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "laoshifu-examples.v1",
+  "notice": "固定模拟资料经真实排盘程序生成，解释作效果展示；不是客户应验、准确率证据或对你本人的测算。预览本地读取，不上传个人资料，不发起付款。",
+  "examples": [
+    {
+      "id": "birth",
+      "title": "先看出生资料的做事风格解读",
+      "kind": "birth",
+      "engineVersion": "4.2.0",
+      "inputType": "synthetic-fixed",
+      "inputs": {
+        "year": 1990,
+        "month": 6,
+        "day": 15,
+        "hour": 10,
+        "minute": 30,
+        "gender": "male",
+        "timeZone": 8,
+        "currentYear": 2026
+      },
+      "response": "birth/response.txt",
+      "files": [
+        {
+          "path": "birth/plan.json",
+          "sha256": "cdf9258a275f01390453d76260523b9d81aca52aba9bee15871de5e56bbb1464"
+        },
+        {
+          "path": "birth/response.txt",
+          "sha256": "8b93f4dfceab6ed3e25e8eb2bbd2b1965582bc3f3cf6e535faec32ef9da6c5d8"
+        },
+        {
+          "path": "birth/review.json",
+          "sha256": "b45644f29b17ff28e906bc00dd5dafc1db132583acf69b8eb5fe7513d5a03432"
+        },
+        {
+          "path": "birth/source.json",
+          "sha256": "6fa0726f94c348eb7b34837ffe54e4fefce6a373ee74cd0df731043fc5d1fdbd"
+        }
+      ]
+    },
+    {
+      "id": "contract",
+      "title": "先看一件合同能否落定的完整问事",
+      "kind": "event",
+      "engineVersion": "4.2.0",
+      "inputType": "synthetic-fixed",
+      "inputs": {
+        "question": "这份合作能否在本月底前签约？",
+        "year": 2026,
+        "month": 11,
+        "day": 2,
+        "hour": 9,
+        "minute": 30,
+        "timeZone": 8,
+        "method": "numbers",
+        "numbers": [
+          12,
+          35,
+          8
+        ]
+      },
+      "response": "contract/response.txt",
+      "files": [
+        {
+          "path": "contract/response.txt",
+          "sha256": "ca55e9af99f3f0e6073400014da1c3811a6b92a399eb0161dc34bfbe83a82dd7"
+        },
+        {
+          "path": "contract/review.json",
+          "sha256": "8646ca9aea9cb982054027cc28e1d43637933ee9137a7c43e1e172f17dcdb18c"
+        },
+        {
+          "path": "contract/source.json",
+          "sha256": "765243bf39f052fd2cd8875cc27f3500839307289dd97b563bc434ef0eb6f8f8"
+        }
+      ]
+    }
+  ]
+}

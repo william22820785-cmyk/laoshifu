@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "bazi-ziwei-consultation.v1",
+  "stage": "reading",
+  "conclusions": [
+    {
+      "id": "personality",
+      "topic": "personality",
+      "verdict": "你做事可能较重规矩、倾向把事情理清，但表达方式不宜简单定成只有强硬或只有柔和，还需结合具体处境核对。",
+      "timing": "本条只谈一般结构，不能据此确定事件时间。",
+      "conditions": [],
+      "guidance": [
+        "把这条描述与实际处事方式核对，不据此决定职业。"
+      ],
+      "bazi_evidence_ids": [
+        "E001"
+      ],
+      "ziwei_evidence_ids": [
+        "E006"
+      ],
+      "counter_evidence_ids": [],
+      "agreement": "complementary",
+      "bazi_level": "medium",
+      "ziwei_level": "medium",
+      "delivery": "tentative",
+      "resolution_ids": [
+        "r-personality"
+      ],
+      "uncertainty": "这只是待现实核对的传统性格解释，不能据此认定个人经历或固定人格。"
+    }
+  ]
+}

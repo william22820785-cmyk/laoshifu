@@ -1,0 +1,522 @@
+{
+  "schemaVersion": "aceworld-liuyao-qimen-fusion.v3",
+  "stage": "reading",
+  "timeBasis": "local",
+  "basisComparison": {
+    "localPillars": "丙午 戊戌 庚辰 辛巳",
+    "beijingPillars": "丙午 戊戌 庚辰 辛巳",
+    "diverges": false,
+    "differences": []
+  },
+  "question": {
+    "text": "这份合作能否在本月底前签约？",
+    "category": "career",
+    "answerNeed": "outcome",
+    "desiredOutcome": "本月底前签约",
+    "knownContext": []
+  },
+  "methods": {
+    "liuyao": {
+      "本卦": "雷火丰",
+      "变卦": "雷天大壮",
+      "动爻": [
+        {
+          "爻位": 2,
+          "六亲": "官鬼",
+          "纳支": "丑",
+          "五行": "土",
+          "六神": "玄武"
+        }
+      ],
+      "世爻": {
+        "爻位": 5,
+        "六亲": "父母",
+        "纳支": "申",
+        "五行": "金",
+        "六神": "勾陈"
+      },
+      "应爻": {
+        "爻位": 2,
+        "六亲": "官鬼",
+        "纳支": "丑",
+        "五行": "土",
+        "六神": "玄武"
+      },
+      "direction": "吉",
+      "level": "low",
+      "evidence": {
+        "items": [
+          {
+            "kind": "用神",
+            "label": "六爻用神",
+            "text": "本次用神取事业用神；盘面匹配本卦2爻官鬼丑土→子孙寅木（回头克）、本卦6爻官鬼戌土"
+          },
+          {
+            "kind": "得助",
+            "label": "第2爻官鬼丑土",
+            "text": "临应"
+          },
+          {
+            "kind": "受限",
+            "label": "第2爻官鬼丑土",
+            "text": "入日墓"
+          },
+          {
+            "kind": "动变",
+            "label": "第2爻官鬼丑土动变",
+            "text": "动变关系：回头克"
+          },
+          {
+            "kind": "得助",
+            "label": "第6爻官鬼戌土",
+            "text": "暗动"
+          },
+          {
+            "kind": "受限",
+            "label": "第6爻官鬼戌土",
+            "text": "入日墓"
+          },
+          {
+            "kind": "世爻得助",
+            "label": "世爻",
+            "text": "临世"
+          },
+          {
+            "kind": "世爻受限",
+            "label": "世爻",
+            "text": "本爻空亡"
+          },
+          {
+            "kind": "反证",
+            "label": "事业用神",
+            "text": "入日墓"
+          },
+          {
+            "kind": "反证",
+            "label": "事业用神",
+            "text": "回头克"
+          },
+          {
+            "kind": "反证",
+            "label": "文书辅证",
+            "text": "本爻空亡"
+          },
+          {
+            "kind": "应期条件",
+            "label": "动爻触发",
+            "text": "第2爻官鬼丑发动化子孙寅"
+          },
+          {
+            "kind": "应期条件",
+            "label": "空亡填实",
+            "text": "空亡申、酉须待出空、冲实或透出再验"
+          },
+          {
+            "kind": "卦内结构",
+            "label": "整卦六合六冲",
+            "text": "变卦六冲卦"
+          }
+        ]
+      }
+    },
+    "qimen": {
+      "局数": "阴遁5局",
+      "节气": "霜降上元",
+      "值符": "天辅(落2宫)",
+      "值使": "杜门(落9宫)",
+      "空亡": "申、酉",
+      "direction": "平",
+      "level": "medium",
+      "evidence": {
+        "items": [
+          {
+            "kind": "格局",
+            "label": "格局",
+            "text": "为客不利，是非颇多，阴人缠绕"
+          },
+          {
+            "kind": "格局",
+            "label": "格局",
+            "text": "阴人作祟，惊怪之事"
+          },
+          {
+            "kind": "格局",
+            "label": "格局",
+            "text": "刑狱公平，立判邪正"
+          },
+          {
+            "kind": "格局",
+            "label": "格局",
+            "text": "家宅不安，人亡家破"
+          },
+          {
+            "kind": "特殊状态",
+            "label": "特殊状态",
+            "text": "空亡——事有虚象，宜待填实"
+          },
+          {
+            "kind": "特殊状态",
+            "label": "特殊状态",
+            "text": "空亡——事有虚象，宜待填实"
+          },
+          {
+            "kind": "提示",
+            "label": "奇门提示",
+            "text": "空亡——事有虚象，宜待填实"
+          },
+          {
+            "kind": "提示",
+            "label": "奇门提示",
+            "text": "空亡——事有虚象，宜待填实"
+          },
+          {
+            "kind": "用神宫",
+            "label": "奇门用神",
+            "text": "主用神六合、生门；辅看日干、时干"
+          },
+          {
+            "kind": "空亡",
+            "label": "奇门空亡",
+            "text": "本次盘面空亡：申、酉"
+          }
+        ]
+      }
+    }
+  },
+  "evidence": [
+    {
+      "id": "ly-01",
+      "system": "liuyao",
+      "label": "六爻用神",
+      "kind": "用神",
+      "sourcePath": "/methods/liuyao/evidence/items/0/text",
+      "value": "本次用神取事业用神；盘面匹配本卦2爻官鬼丑土→子孙寅木（回头克）、本卦6爻官鬼戌土"
+    },
+    {
+      "id": "ly-02",
+      "system": "liuyao",
+      "label": "第2爻官鬼丑土",
+      "kind": "得助",
+      "sourcePath": "/methods/liuyao/evidence/items/1/text",
+      "value": "临应"
+    },
+    {
+      "id": "ly-03",
+      "system": "liuyao",
+      "label": "第2爻官鬼丑土",
+      "kind": "受限",
+      "sourcePath": "/methods/liuyao/evidence/items/2/text",
+      "value": "入日墓"
+    },
+    {
+      "id": "ly-04",
+      "system": "liuyao",
+      "label": "第2爻官鬼丑土动变",
+      "kind": "动变",
+      "sourcePath": "/methods/liuyao/evidence/items/3/text",
+      "value": "动变关系：回头克"
+    },
+    {
+      "id": "ly-05",
+      "system": "liuyao",
+      "label": "第6爻官鬼戌土",
+      "kind": "得助",
+      "sourcePath": "/methods/liuyao/evidence/items/4/text",
+      "value": "暗动"
+    },
+    {
+      "id": "ly-06",
+      "system": "liuyao",
+      "label": "第6爻官鬼戌土",
+      "kind": "受限",
+      "sourcePath": "/methods/liuyao/evidence/items/5/text",
+      "value": "入日墓"
+    },
+    {
+      "id": "ly-07",
+      "system": "liuyao",
+      "label": "世爻",
+      "kind": "世爻得助",
+      "sourcePath": "/methods/liuyao/evidence/items/6/text",
+      "value": "临世"
+    },
+    {
+      "id": "ly-08",
+      "system": "liuyao",
+      "label": "世爻",
+      "kind": "世爻受限",
+      "sourcePath": "/methods/liuyao/evidence/items/7/text",
+      "value": "本爻空亡"
+    },
+    {
+      "id": "ly-09",
+      "system": "liuyao",
+      "label": "事业用神",
+      "kind": "反证",
+      "sourcePath": "/methods/liuyao/evidence/items/8/text",
+      "value": "入日墓"
+    },
+    {
+      "id": "ly-10",
+      "system": "liuyao",
+      "label": "事业用神",
+      "kind": "反证",
+      "sourcePath": "/methods/liuyao/evidence/items/9/text",
+      "value": "回头克"
+    },
+    {
+      "id": "ly-11",
+      "system": "liuyao",
+      "label": "文书辅证",
+      "kind": "反证",
+      "sourcePath": "/methods/liuyao/evidence/items/10/text",
+      "value": "本爻空亡"
+    },
+    {
+      "id": "ly-12",
+      "system": "liuyao",
+      "label": "动爻触发",
+      "kind": "应期条件",
+      "sourcePath": "/methods/liuyao/evidence/items/11/text",
+      "value": "第2爻官鬼丑发动化子孙寅"
+    },
+    {
+      "id": "ly-13",
+      "system": "liuyao",
+      "label": "空亡填实",
+      "kind": "应期条件",
+      "sourcePath": "/methods/liuyao/evidence/items/12/text",
+      "value": "空亡申、酉须待出空、冲实或透出再验"
+    },
+    {
+      "id": "ly-14",
+      "system": "liuyao",
+      "label": "整卦六合六冲",
+      "kind": "卦内结构",
+      "sourcePath": "/methods/liuyao/evidence/items/13/text",
+      "value": "变卦六冲卦"
+    },
+    {
+      "id": "qm-01",
+      "system": "qimen",
+      "label": "格局",
+      "kind": "格局",
+      "sourcePath": "/methods/qimen/evidence/items/0/text",
+      "value": "为客不利，是非颇多，阴人缠绕"
+    },
+    {
+      "id": "qm-02",
+      "system": "qimen",
+      "label": "格局",
+      "kind": "格局",
+      "sourcePath": "/methods/qimen/evidence/items/1/text",
+      "value": "阴人作祟，惊怪之事"
+    },
+    {
+      "id": "qm-03",
+      "system": "qimen",
+      "label": "格局",
+      "kind": "格局",
+      "sourcePath": "/methods/qimen/evidence/items/2/text",
+      "value": "刑狱公平，立判邪正"
+    },
+    {
+      "id": "qm-04",
+      "system": "qimen",
+      "label": "格局",
+      "kind": "格局",
+      "sourcePath": "/methods/qimen/evidence/items/3/text",
+      "value": "家宅不安，人亡家破"
+    },
+    {
+      "id": "qm-05",
+      "system": "qimen",
+      "label": "特殊状态",
+      "kind": "特殊状态",
+      "sourcePath": "/methods/qimen/evidence/items/4/text",
+      "value": "空亡——事有虚象，宜待填实"
+    },
+    {
+      "id": "qm-06",
+      "system": "qimen",
+      "label": "特殊状态",
+      "kind": "特殊状态",
+      "sourcePath": "/methods/qimen/evidence/items/5/text",
+      "value": "空亡——事有虚象，宜待填实"
+    },
+    {
+      "id": "qm-07",
+      "system": "qimen",
+      "label": "奇门提示",
+      "kind": "提示",
+      "sourcePath": "/methods/qimen/evidence/items/6/text",
+      "value": "空亡——事有虚象，宜待填实"
+    },
+    {
+      "id": "qm-08",
+      "system": "qimen",
+      "label": "奇门提示",
+      "kind": "提示",
+      "sourcePath": "/methods/qimen/evidence/items/7/text",
+      "value": "空亡——事有虚象，宜待填实"
+    },
+    {
+      "id": "qm-09",
+      "system": "qimen",
+      "label": "奇门用神",
+      "kind": "用神宫",
+      "sourcePath": "/methods/qimen/evidence/items/8/text",
+      "value": "主用神六合、生门；辅看日干、时干"
+    },
+    {
+      "id": "qm-10",
+      "system": "qimen",
+      "label": "奇门空亡",
+      "kind": "空亡",
+      "sourcePath": "/methods/qimen/evidence/items/9/text",
+      "value": "本次盘面空亡：申、酉"
+    }
+  ],
+  "agreement": {
+    "overall": "complementary",
+    "points": [
+      {
+        "dimension": "总体吉凶",
+        "verdict": "六爻偏吉，奇门偏平",
+        "delivery": "tentative",
+        "detail": "六爻：第2爻官鬼丑土临应；动变关系：回头克；奇门：为客不利，是非颇多，阴人缠绕"
+      }
+    ],
+    "conflicts": []
+  },
+  "conclusions": [
+    {
+      "id": "outcome",
+      "appliesTo": "本月底前签约",
+      "verdict": "两法指向不一致：六爻讲吉，奇门讲平。两种可能都得放上桌——偏成的情形是第2爻官鬼丑土临应；偏不成的情形是动变关系：回头克。",
+      "timing": "第2爻官鬼丑发动化子孙寅；本次盘面空亡：申、酉；具体还要看条件是否出现",
+      "conditions": [
+        "把节点、交付物和对方要签的字先落成书面",
+        "先处理：动变关系：回头克"
+      ],
+      "guidance": [
+        "把节点、交付物和对方要签的字先落成书面"
+      ],
+      "delivery": "tentative",
+      "liuyao_evidence_ids": [
+        "ly-02",
+        "ly-05",
+        "ly-03"
+      ],
+      "qimen_evidence_ids": [
+        "qm-01"
+      ],
+      "counter_evidence_ids": [
+        "ly-09",
+        "ly-10",
+        "ly-11"
+      ],
+      "liuyao_level": "low",
+      "qimen_level": "medium",
+      "agreement": "complementary"
+    },
+    {
+      "id": "timing",
+      "appliesTo": "本月底前签约",
+      "verdict": "第2爻官鬼丑发动化子孙寅；本次盘面空亡：申、酉；具体还要看条件是否出现",
+      "timing": "以盘内触发条件为准，不锁定具体日期",
+      "conditions": [
+        "等触发条件出现再推进"
+      ],
+      "guidance": [
+        "不要在条件未出现前反复催问"
+      ],
+      "delivery": "probable",
+      "liuyao_evidence_ids": [
+        "ly-12"
+      ],
+      "qimen_evidence_ids": [
+        "qm-10"
+      ],
+      "counter_evidence_ids": [],
+      "liuyao_level": "medium",
+      "qimen_level": "medium",
+      "agreement": "same"
+    }
+  ],
+  "diagram": "本卦 ䷶ 雷火丰　→　变卦 ䷡ 雷天大壮\n\n| 六神 | 爻位 | 六亲纳甲 | 世应 | 本卦爻象 | 动 | 变卦爻象 | 变爻 / 伏神 |\n|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---|\n| 螣蛇 | 上爻 | 官鬼戌土 |  | `━━  ━━` |  | `━━  ━━` |  |\n| 勾陈 | 五爻 | 父母申金 | 世 | `━━  ━━` |  | `━━  ━━` |  |\n| 朱雀 | 四爻 | 妻财午火 |  | `━━━━━━` |  | `━━━━━━` |  |\n| 青龙 | 三爻 | 兄弟亥水 |  | `━━━━━━` |  | `━━━━━━` |  |\n| 玄武 | 二爻 | 官鬼丑土 | 应 | `━━  ━━` | × | `━━━━━━` | 化子孙寅木 |\n| 白虎 | 初爻 | 子孙卯木 |  | `━━━━━━` |  | `━━━━━━` |  |",
+  "diagramData": {
+    "schemaVersion": "laoshifu-diagram.v1",
+    "primaryName": "雷火丰",
+    "changedName": "雷天大壮",
+    "rows": [
+      {
+        "position": 6,
+        "primaryYang": false,
+        "changedYang": false,
+        "moving": false,
+        "sixGod": "螣蛇",
+        "relative": "官鬼戌土",
+        "marker": "",
+        "changedRelative": "",
+        "hidden": []
+      },
+      {
+        "position": 5,
+        "primaryYang": false,
+        "changedYang": false,
+        "moving": false,
+        "sixGod": "勾陈",
+        "relative": "父母申金",
+        "marker": "世",
+        "changedRelative": "",
+        "hidden": []
+      },
+      {
+        "position": 4,
+        "primaryYang": true,
+        "changedYang": true,
+        "moving": false,
+        "sixGod": "朱雀",
+        "relative": "妻财午火",
+        "marker": "",
+        "changedRelative": "",
+        "hidden": []
+      },
+      {
+        "position": 3,
+        "primaryYang": true,
+        "changedYang": true,
+        "moving": false,
+        "sixGod": "青龙",
+        "relative": "兄弟亥水",
+        "marker": "",
+        "changedRelative": "",
+        "hidden": []
+      },
+      {
+        "position": 2,
+        "primaryYang": false,
+        "changedYang": true,
+        "moving": true,
+        "sixGod": "玄武",
+        "relative": "官鬼丑土",
+        "marker": "应",
+        "changedRelative": "子孙寅木",
+        "hidden": []
+      },
+      {
+        "position": 1,
+        "primaryYang": true,
+        "changedYang": true,
+        "moving": false,
+        "sixGod": "白虎",
+        "relative": "子孙卯木",
+        "marker": "",
+        "changedRelative": "",
+        "hidden": []
+      }
+    ]
+  },
+  "soulNote": "你要过的关不是有没有机会，而是愿不愿意离开已经不合身的位置。"
+}

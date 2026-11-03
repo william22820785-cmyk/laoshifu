@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "laoshifu-dual-review.v1",
+  "kind": "birth",
+  "sourceSha256": "6fa0726f94c348eb7b34837ffe54e4fefce6a373ee74cd0df731043fc5d1fdbd",
+  "mode": "sequential",
+  "focus": "这份固定测试盘能够支持怎样的性格描述，有哪些边界？",
+  "methods": [
+    {
+      "method": "bazi",
+      "claims": [
+        {
+          "id": "bz-personality",
+          "proposition": "日主辛金的已有判据提示重规矩、处事较果断，不能由此推断具体职业或经历。",
+          "evidence_ids": [
+            "E001"
+          ],
+          "counter_evidence_ids": [],
+          "scope": {
+            "subject": "固定出生测试盘",
+            "time": "一般结构，不指定年份",
+            "aspect": "性格解释"
+          },
+          "limits": [
+            "单一判据不构成人格定型或现实事实。"
+          ],
+          "source_paths": [
+            {
+              "path": "/bazi/dayMaster",
+              "value": "辛"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "method": "ziwei",
+      "claims": [
+        {
+          "id": "zw-personality",
+          "proposition": "命宫太阳、太阴同列，性格解释需看组合，不能简化成单一强硬或柔和。",
+          "evidence_ids": [
+            "E006"
+          ],
+          "counter_evidence_ids": [],
+          "scope": {
+            "subject": "固定出生测试盘",
+            "time": "一般结构，不指定年份",
+            "aspect": "性格解释"
+          },
+          "limits": [
+            "星曜组合只供传统性格解释，不等于经验证的人格或经历。"
+          ],
+          "source_paths": [
+            {
+              "path": "/ziwei/gongs/0/gong",
+              "value": "命宫"
+            },
+            {
+              "path": "/ziwei/gongs/0/mainStars/0",
+              "value": "太阳"
+            },
+            {
+              "path": "/ziwei/gongs/0/mainStars/1",
+              "value": "太阴"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "resolutions": [
+    {
+      "id": "r-personality",
+      "left_claim_ids": [
+        "bz-personality"
+      ],
+      "right_claim_ids": [
+        "zw-personality"
+      ],
+      "relation": "complementary",
+      "rationale": "八字提示重规矩、果断，紫微组合提醒表达方式不能只按单一强硬或柔和理解；二者可并存，不推出职业、收入或过去经历。",
+      "condition_evidence_ids": [],
+      "retained_counter_evidence_ids": [],
+      "rounds": 0
+    }
+  ],
+  "conclusions": [
+    {
+      "id": "personality",
+      "topic": "personality",
+      "verdict": "你做事可能较重规矩、倾向把事情理清，但表达方式不宜简单定成只有强硬或只有柔和，还需结合具体处境核对。",
+      "timing": "本条只谈一般结构，不能据此确定事件时间。",
+      "conditions": [],
+      "guidance": [
+        "把这条描述与实际处事方式核对，不据此决定职业。"
+      ],
+      "bazi_evidence_ids": [
+        "E001"
+      ],
+      "ziwei_evidence_ids": [
+        "E006"
+      ],
+      "counter_evidence_ids": [],
+      "agreement": "complementary",
+      "bazi_level": "medium",
+      "ziwei_level": "medium",
+      "delivery": "tentative",
+      "resolution_ids": [
+        "r-personality"
+      ],
+      "uncertainty": "这只是待现实核对的传统性格解释，不能据此认定个人经历或固定人格。"
+    }
+  ]
+}
