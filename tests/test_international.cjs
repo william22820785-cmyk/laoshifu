@@ -27,8 +27,8 @@ for(const lang of ['en','es','pt']){
    const review=JSON.parse(fs.readFileSync(path.join(base,'review.json'),'utf8'));
    const text=fs.readFileSync(path.join(root,'examples/translations',lang,kind+'.txt'),'utf8');
    const parts=text.trim().split('\n\n');
-   const verdict=kind==='birth'?parts[1]:parts[3].split('\n')[0];
-   const uncertainty=kind==='birth'?parts[4]:parts[3].split('\n').slice(1).join(' ');
+   const verdict=kind==='birth'?parts[1]:parts[1].split('\n')[0];
+   const uncertainty=kind==='birth'?parts[4]:parts[1].split('\n').slice(1).join(' ');
    review.conclusions=review.conclusions.map(c=>({...c,verdict,uncertainty,timing:'',conditions:[],guidance:[]}));
    const temp=fs.mkdtempSync(path.join(os.tmpdir(),'laoshifu-language-'));
    try{

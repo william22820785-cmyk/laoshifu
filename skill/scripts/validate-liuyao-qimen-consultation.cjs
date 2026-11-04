@@ -74,7 +74,7 @@ function validate(f,response,notes,detail,args){
   if(f.conclusions.length||f.diagram)errors.push('拒答/受限不得附带结论或卦图');
   if(f.methods||f.agreement||Object.hasOwn(f,'diagramData')||args.diagramBundle)errors.push('拒答/受限不得附带盘面');
   if(!P.nonempty(f.message))errors.push('拒答/受限需 message');
-  return errors.concat(P.textIssues(response,detail));
+  return errors.concat(P.textIssues(response,detail),P.nounAuditIssues(response,args.nounAudit?P.readJSON(args.nounAudit):null,args.language));
  }
  if(!P.plain(f.methods)||!P.plain(f.methods.liuyao)||!P.plain(f.methods.qimen))errors.push('methods.liuyao/qimen 必须是对象');
  const agreements=['same','complementary','conflict'];
@@ -142,6 +142,7 @@ function validate(f,response,notes,detail,args){
   prose=diagram?response.replace(diagram,''):response;
  }
 errors.push(...P.textIssues(prose,detail),...P.noteIssues(prose,original,notes));
+ errors.push(...P.nounAuditIssues(prose,args.nounAudit?P.readJSON(args.nounAudit):null,args.language));
  if(P.nonempty(f.timeBasisDisclosure)&&!response.includes(P.normalize(f.timeBasisDisclosure)))
   errors.push('答复缺少时基披露原文: '+f.timeBasisDisclosure);
  return errors;

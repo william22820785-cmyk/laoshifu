@@ -1,5 +1,6 @@
 /** V4.1 public explanation contract: source facts, plain-language gloss, no scoring dump. */
 const fs = require('node:fs');
+const {nounAuditIssues}=require('./terminology-policy.cjs');
 const INTERNAL_TERMS = ['evidence_ids','sourcePath','sourceValue','schemaVersion','内部等级','算法版本','融合权重','加权评分','推断链','推断结构','skill-root','consultation-plan','chart.json','fusion.json','后台评分','九宫格'];
 const UNSUPPORTED_PROMISES = ['保证准确','百分之百准确','保证应验','百算百准','稳赚不赔','包你发财','必有灾祸','不买就会倒霉'];
 const GLOSSARY_TERMS = ['日主','十神','旺衰','用神','忌神','喜用','官禄宫','夫妻宫','命宫','四化','化禄','化忌','世爻','应爻','父母爻','官鬼爻','妻财爻','动爻','空亡','回头生','回头克','伏神','值符','值使','生门','开门'];
@@ -59,4 +60,4 @@ function noteIssues(text,source,notes) {
  for(const t of found)if(!seen.has(t))errors.push('术语缺少对应解释记录: '+t);
  return errors;
 }
-module.exports={INTERNAL_TERMS,GLOSSARY_TERMS,LIMITS,plain,nonempty,normalize,readText,readJSON,args,textIssues,noteIssues,resolvePointer};
+module.exports={nounAuditIssues,INTERNAL_TERMS,GLOSSARY_TERMS,LIMITS,plain,nonempty,normalize,readText,readJSON,args,textIssues,noteIssues,resolvePointer};
