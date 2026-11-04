@@ -1,17 +1,17 @@
 /**
  * validate-consultation.cjs — 八字紫微会谈校验脚本（V5 升级版）
- * 
+ *
  * 校验算人场景下的会谈输出：
  * 1. 校验 consultation-plan.json 与 chart.json 的 evidence ID 一致性
  * 2. 校验 response.txt 的黑盒合规性 + 江湖化负向红线
- * 
+ *
  * V5 变更（依据审官、验师第4轮对抗性审查）：
  * - 拆分 checkInquiry() / checkResponse()：问询文本只查黑盒，答复文本查全量
  *   （避免用户问句里的"大概/应该"被误判为老师退让）
  * - responseChecks 支持 roundMeta：双高轮才查退让词、断语体才查意象堆砌
  * - 退让词改为"无落点退让结构"判据（比单字表更准，少误杀建议句）
  * - 意象堆砌需要人工预标（isJoke/isVerdict 标记），脚本只查有标记的断语体
- * 
+ *
  * 用法:
  *   node validate-consultation.cjs --chart=chart.json --plan=consultation-plan.json
  *   node validate-consultation.cjs --chart=chart.json --plan=consultation-plan.json --response=response.txt [--roundMeta=response-meta.json]
@@ -205,6 +205,7 @@ function main() {
   if (args.inquiry) {
     const text = loadText(args.inquiry);
     const issues = checkInquiry(text);
+    issues.push(...P.nounAuditIssues(text,args.nounAudit?loadJSON(args.nounAudit):null,args.language));
     if (issues.length > 0) {
       console.log('[WARN]');
       issues.forEach(i => console.log(`  ${i}`));
@@ -259,6 +260,7 @@ function main() {
       meta = { ...meta, isFirm: derivePlanFirm(plan) || meta.isFirm === true };
     }
     const issues = checkResponse(text, meta, args.detail || 'standard');
+    issues.push(...P.nounAuditIssues(text,args.nounAudit?loadJSON(args.nounAudit):null,args.language));
     const notes = args.publicNotes ? P.readJSON(args.publicNotes) : null;
     issues.push(...P.noteIssues(text, chart, notes));
     allIssues.push(...issues);

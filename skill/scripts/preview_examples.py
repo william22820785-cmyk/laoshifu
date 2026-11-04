@@ -51,8 +51,6 @@ def language_tag(value):
 def localized_catalog(root, lang):
     original = catalog(root)
     lang = language_tag(lang)
-    if lang == 'zh':
-        return NOTICE, original
     try:
         manifest = json.loads(checked_file(root, 'translations/manifest.json', 16000))
         if not isinstance(manifest, dict) or manifest.get('schemaVersion') != 'laoshifu-translations.v1':
@@ -88,14 +86,45 @@ def render(root,key,lang='zh'):
     except UnicodeError as error:raise ValueError('示例文本格式错误') from error
     return notice+'\n\n'+e['title']+'\n\n'+answer
 
+def render_welcome(skill_root, lang='zh'):
+    lang = language_tag(lang)
+    try:
+        text = checked_file(skill_root, 'references/CULTURAL-WELCOME.' + lang + '.md').decode('utf-8').replace('\r\n', '\n').replace('\r', '\n')
+        audit = json.loads(checked_file(skill_root, 'references/cultural-noun-audits/' + lang + '.json', 150000))
+        if not isinstance(audit, dict) or audit.get('schemaVersion') != 'laoshifu-noun-audit.v1' or audit.get('language') != lang:
+            raise ValueError('Cultural welcome noun audit is invalid')
+        if audit.get('textSha256') != hashlib.sha256(text.encode('utf-8')).hexdigest():
+            raise ValueError('Cultural welcome changed; review its noun audit again')
+        if audit.get('coverage') != 'all-noun-occurrences' or audit.get('reviewedBy') not in {'host-language-review', 'linguist-review', 'pos-tagger+review'}:
+            raise ValueError('Cultural welcome needs reviewed noun annotations')
+        nouns = audit.get('nouns')
+        if not isinstance(nouns, list) or not nouns or len(nouns) > 10000:
+            raise ValueError('Cultural welcome noun annotations are missing')
+        previous = 0
+        for noun in nouns:
+            if not isinstance(noun, dict) or type(noun.get('start')) is not int or type(noun.get('end')) is not int:
+                raise ValueError('Invalid noun span')
+            start, end = noun['start'], noun['end']
+            if start < previous or end <= start or end > len(text) or noun.get('pos') not in {'NOUN', 'PROPN'} or type(noun.get('technical')) is not bool:
+                raise ValueError('Invalid noun annotations')
+            previous = end
+        if sum(noun['technical'] for noun in nouns) * 100 >= len(nouns) * 14:
+            raise ValueError('Specialist nouns must be below 14% of all nouns')
+        return text
+    except (OSError, UnicodeError, TypeError, KeyError, json.JSONDecodeError) as error:
+        raise ValueError('Cultural welcome unavailable; get a complete installation') from error
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__);g=p.add_mutually_exclusive_group()
     g.add_argument('--list',action='store_true');g.add_argument('--example',choices=sorted(IDS))
+    g.add_argument('--welcome', action='store_true', help='Explore Chinese culture before choosing a reading')
     p.add_argument('--lang', default='zh', help='Preview language: zh, en, es, pt (regional tags accepted)')
     a=p.parse_args()
     root=Path(__file__).resolve().parents[1]/'examples'
     try:
-        if a.example:print(render(root,a.example,a.lang))
+        if a.welcome:print(render_welcome(root.parent,a.lang), end='')
+        elif a.example:print(render(root,a.example,a.lang))
         else:
             notice,rows=localized_catalog(root,a.lang);print(notice+'\n');print('\n'.join(e['id']+' — '+e['title'] for e in rows))
         return 0

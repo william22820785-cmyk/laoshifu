@@ -21,7 +21,7 @@ ROOT_SCHEMA='laoshifu-private-root.v1'
 SESSION_SCHEMA='laoshifu-private-session.v1'
 ID=re.compile(r's-[a-f0-9]{32}\Z')
 SCRIPTS=Path(__file__).resolve().parent
-KNOWN={SESSION_MARKER,'chart.json','fusion.json','response.txt','review.json','consultation-plan.json','public-notes.json','candidates.json'}
+KNOWN={SESSION_MARKER,'chart.json','fusion.json','response.txt','review.json','consultation-plan.json','public-notes.json','candidates.json','noun-audit.json'}
 class SessionError(ValueError):pass
 
 def _now(value=None):
