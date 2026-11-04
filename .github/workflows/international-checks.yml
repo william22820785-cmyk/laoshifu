@@ -1,0 +1,26 @@
+name: International free-edition checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  check:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install -r requirements-international.txt
+      - run: python -m unittest discover -s tests -p "test_*.py"
+      - run: python tests/test_v4_bugfix.py
+      - run: node --test tests/test_dual_review.cjs tests/test_international.cjs
+      - run: python scripts/liuyao_qimen_fusion.py --self-test

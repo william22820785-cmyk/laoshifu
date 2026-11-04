@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "laoshifu-translations.v1",
+  "sourceManifestSha256": "02b64c01b73fc0eafa6ce221e391ea499bb31c07f64a0404d9d935c1f71a0f1e",
+  "locales": {
+    "en": {
+      "notice": "Fixed synthetic examples generated with the real charting programs. Translated for demonstration; not a client testimonial, evidence of predictive accuracy, or a reading about you. Preview is local, collects no personal data and starts no payment.",
+      "examples": [
+        {
+          "id": "birth",
+          "title": "Birth example: interpreting working style",
+          "response": "translations/en/birth.txt",
+          "sha256": "bf34e4c3b94a188894803cfdaa9dcfbc2ce73dd1b196a097293108dc549c5066"
+        },
+        {
+          "id": "contract",
+          "title": "Contract example: progress versus a signing deadline",
+          "response": "translations/en/contract.txt",
+          "sha256": "049f73a61675441a0bf275b4041c79da33f36f4cdf66c770d2f70b5cc97b47db"
+        }
+      ]
+    },
+    "es": {
+      "notice": "Ejemplos fijos con datos simulados, generados con los programas reales de cálculo. Traducción para mostrar el funcionamiento; no son testimonios, pruebas de precisión predictiva ni una lectura sobre ti. La vista previa es local, no recoge datos personales ni inicia pagos.",
+      "examples": [
+        {
+          "id": "birth",
+          "title": "Ejemplo natal: interpretación de la forma de trabajar",
+          "response": "translations/es/birth.txt",
+          "sha256": "45c48a57103c99c4fdb86079c84f7effaba58e1c163258d7fc0c1e3736d48078"
+        },
+        {
+          "id": "contract",
+          "title": "Ejemplo de contrato: avances y plazo de firma",
+          "response": "translations/es/contract.txt",
+          "sha256": "caa4aa6447bab83af6a214fd902f54d0c5d84b5716b3f8625cbf5a6a6551e622"
+        }
+      ]
+    },
+    "pt": {
+      "notice": "Exemplos fixos com dados simulados, gerados pelos programas reais de cálculo. Tradução para demonstração; não são depoimentos, provas de precisão preditiva nem uma leitura sobre você. A prévia é local, não coleta dados pessoais nem inicia pagamentos.",
+      "examples": [
+        {
+          "id": "birth",
+          "title": "Exemplo natal: interpretação do jeito de trabalhar",
+          "response": "translations/pt/birth.txt",
+          "sha256": "c53728cb1d70622f3504da0c26ef95178ccb7bad99e055e16f44a7ebe208c903"
+        },
+        {
+          "id": "contract",
+          "title": "Exemplo de contrato: avanço e prazo de assinatura",
+          "response": "translations/pt/contract.txt",
+          "sha256": "dfe16396c392b5b44f0cf7fc2d84b81d1272d93a7269016a5c5b5fb119cd2150"
+        }
+      ]
+    }
+  }
+}

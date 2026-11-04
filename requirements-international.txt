@@ -1,0 +1,2 @@
+# IANA timezone database; needed on Windows and hosts without system tzdata.
+tzdata>=2025.2

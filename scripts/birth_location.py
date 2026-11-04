@@ -74,11 +74,22 @@ def resolve_birthplace(place: str, timezone_id: str | None = None,
 
 
 def utc_offset_hours(local_time: datetime, location: BirthLocation) -> float:
-    aware = local_time.replace(tzinfo=ZoneInfo(location.timezone_id))
-    offset = aware.utcoffset()
-    if offset is None:
-        raise ValueError("无法取得出生地在该日期的历史时区偏移")
-    return offset.total_seconds() / 3600
+    try:
+        zone = ZoneInfo(location.timezone_id)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError("Timezone data unavailable; install requirements-international.txt (tzdata)") from exc
+    # Round-trips distinguish missing spring hours from repeated autumn hours.
+    offsets = set()
+    for fold in (0, 1):
+        aware = local_time.replace(tzinfo=zone, fold=fold)
+        restored = aware.astimezone(timezone.utc).astimezone(zone).replace(tzinfo=None)
+        if restored == local_time and aware.utcoffset() is not None:
+            offsets.add(aware.utcoffset())
+    if not offsets:
+        raise ValueError("Birth time falls in a daylight-saving gap; verify the recorded local time")
+    if len(offsets) != 1:
+        raise ValueError("Birth time is ambiguous at a daylight-saving transition; resolve it before charting")
+    return offsets.pop().total_seconds() / 3600
 
 
 def equation_of_time_minutes(local_time: datetime) -> float:

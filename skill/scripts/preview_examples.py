@@ -39,25 +39,68 @@ def catalog(root):
     except (OSError,UnicodeError,TypeError,KeyError,json.JSONDecodeError) as error:
         raise ValueError('无法读取完整示例，请重新获取安装包') from error
 
-def render(root,key):
-    rows=catalog(root)
+def language_tag(value):
+    if not isinstance(value, str) or not re.fullmatch(r'[A-Za-z]{2}(?:-[A-Za-z0-9]{2,8})*', value):
+        raise ValueError('Unsupported preview language; choose zh, en, es or pt')
+    base = value.split('-')[0].lower()
+    if base not in {'zh', 'en', 'es', 'pt'}:
+        raise ValueError('Unsupported preview language; choose zh, en, es or pt')
+    return base
+
+
+def localized_catalog(root, lang):
+    original = catalog(root)
+    lang = language_tag(lang)
+    if lang == 'zh':
+        return NOTICE, original
+    try:
+        manifest = json.loads(checked_file(root, 'translations/manifest.json', 16000))
+        if not isinstance(manifest, dict) or manifest.get('schemaVersion') != 'laoshifu-translations.v1':
+            raise ValueError('Invalid translation manifest')
+        if manifest.get('sourceManifestSha256') != hashlib.sha256(checked_file(root, 'manifest.json', 16000)).hexdigest():
+            raise ValueError('Translation source has changed; refresh the translation bundle')
+        locales = manifest.get('locales')
+        entry = locales.get(lang) if isinstance(locales, dict) else None
+        if not isinstance(entry, dict) or not isinstance(entry.get('notice'), str) or not entry['notice'].strip():
+            raise ValueError('Missing translation notice')
+        rows = entry.get('examples')
+        if not isinstance(rows, list) or len(rows) != 2 or {e.get('id') for e in rows if isinstance(e, dict)} != IDS:
+            raise ValueError('Incomplete translated example catalog')
+        for row in rows:
+            expected = 'translations/' + lang + '/' + row['id'] + '.txt'
+            if row.get('response') != expected or not isinstance(row.get('title'), str) or not row['title'].strip():
+                raise ValueError('Invalid translated example path or title')
+            digest = row.get('sha256')
+            if not isinstance(digest, str) or not re.fullmatch('[a-f0-9]{64}', digest):
+                raise ValueError('Invalid translated example checksum')
+            if hashlib.sha256(checked_file(root, expected)).hexdigest() != digest:
+                raise ValueError('Translated example integrity check failed')
+        return entry['notice'], rows
+    except (OSError, UnicodeError, TypeError, KeyError, json.JSONDecodeError) as error:
+        raise ValueError('Cannot load translated examples; get a complete installation') from error
+
+
+def render(root,key,lang='zh'):
+    notice, rows = localized_catalog(root, lang)
     if key not in IDS:raise ValueError('没有这个示例，请选择 birth 或 contract')
     e=next(e for e in rows if e['id']==key)
     try:answer=checked_file(root,e['response']).decode('utf-8')
     except UnicodeError as error:raise ValueError('示例文本格式错误') from error
-    return NOTICE+'\n\n'+e['title']+'\n\n'+answer
+    return notice+'\n\n'+e['title']+'\n\n'+answer
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);g=p.add_mutually_exclusive_group()
-    g.add_argument('--list',action='store_true');g.add_argument('--example',choices=sorted(IDS));a=p.parse_args()
+    g.add_argument('--list',action='store_true');g.add_argument('--example',choices=sorted(IDS))
+    p.add_argument('--lang', default='zh', help='Preview language: zh, en, es, pt (regional tags accepted)')
+    a=p.parse_args()
     root=Path(__file__).resolve().parents[1]/'examples'
     try:
-        if a.example:print(render(root,a.example))
+        if a.example:print(render(root,a.example,a.lang))
         else:
-            rows=catalog(root);print(NOTICE+'\n');print('\n'.join(e['id']+' — '+e['title'] for e in rows))
+            notice,rows=localized_catalog(root,a.lang);print(notice+'\n');print('\n'.join(e['id']+' — '+e['title'] for e in rows))
         return 0
     except ValueError as error:
-        print('示例预览未完成：'+str(error),file=sys.stderr);return 1
+        print('Preview not completed / 示例预览未完成: '+str(error),file=sys.stderr);return 1
 if __name__=='__main__':
     if hasattr(sys.stdout,'reconfigure'):sys.stdout.reconfigure(encoding='utf-8');sys.stderr.reconfigure(encoding='utf-8')
     raise SystemExit(main())

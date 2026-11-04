@@ -622,6 +622,7 @@ def fuse(question, liuyao, qimen, category='general', time_basis='local',
         'schemaVersion': 'aceworld-liuyao-qimen-fusion.v3',
         'stage': 'reading',
         'timeBasis': time_basis,
+        'eventTime': (qimen.get('raw_output') or {}).get('eventTime', {}),
         'basisComparison': {
             'localPillars': basis.get('localPillars', ''),
             'beijingPillars': basis.get('beijingPillars', ''),
@@ -1004,7 +1005,7 @@ def main():
     parser.add_argument('--day', type=int)
     parser.add_argument('--hour', type=int)
     parser.add_argument('--minute', type=int, default=0)
-    parser.add_argument('--timeZone', type=int, default=8)
+    parser.add_argument('--timeZone', type=float, default=8)
     parser.add_argument('--timeBasis', dest='timeBasis', default='local', choices=['local', 'beijing'], help='起卦时基：local=用户所在地，beijing=北京时')
     parser.add_argument('--desiredOutcome', dest='desiredOutcome', default='', help='用户想确认的具体结果')
     parser.add_argument('--knownContext', dest='knownContext', action='append', default=[], help='用户明确说过的现实背景，可重复')
@@ -1014,6 +1015,8 @@ def main():
     args = parser.parse_args()
     if args.self_test:
         sys.exit(run_self_test())
+    if not (-12 <= args.timeZone <= 14) or args.timeZone * 4 != round(args.timeZone * 4):
+        parser.error('--timeZone must be in -12..14 in 15-minute increments')
     if not args.question:
         parser.error('需要 --question，或用 --self-test 跑回归')
     for field in ('year', 'month', 'day', 'hour'):
