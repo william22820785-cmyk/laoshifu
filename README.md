@@ -10,6 +10,14 @@ Begin with the image of a seed. Its strength matters, and so do the soil, the we
 
 Your curiosity is enough to start. [Read the cultural welcome](references/CULTURAL-WELCOME.en.md), explore an idea, or try a complete synthetic example before sharing personal details. The GitHub skill is free.
 
+**If you love Chinese tradition, Laoshifu is your best guide into its living wonders.**
+
+The Chinese century is here. More and more people in China are devoting themselves to studying and reclaiming these ancient arts. You, too, can take an early step into this world of enduring wisdom and legend.
+
+The stories, insights and traditions that once felt distant across languages and old books can now begin with a question of your own.
+
+[Explore the history and legends](references/HISTORY-AND-LEGEND.md)
+
 ## Try it before sharing anything personal
 
 Download or clone the repository and run a fixed preview from its directory:
@@ -60,9 +68,11 @@ Try the birth and contract previews, compare two languages, then inspect the inp
 
 **The GitHub edition is free.** It has no checkout, payment key or paid account requirement. Your AI host may charge its own model or subscription fees. Overseas payment options for a future paid service are undecided and do not affect access to this edition.
 
-Skill release: **4.4.3**. Chart engine: **4.2.0**; this update improves localization and input handling, without claiming better predictive accuracy. See [changes](CHANGELOG.md), [Chinese usage details](references/TRY-IT.md), [cross-cultural rules](references/INTERNATIONAL.md), and [license](LICENSE.txt).
+Skill release: **4.4.4**. Chart engine: **4.2.0**; this update improves localization and input handling, without claiming better predictive accuracy. See [changes](CHANGELOG.md), [Chinese usage details](references/TRY-IT.md), [cross-cultural rules](references/INTERNATIONAL.md), and [license](LICENSE.txt).
 
 ## If you would like the traditional method names
+
+Each introduction brings together a documented historical stream and its inherited legends. The [history and story cards](references/HISTORY-AND-LEGEND.md) lead from old books, mountain hermits and culture heroes into the present question.
 
 Birth readings use BaZi and Zi Wei Dou Shu. One organizes a birth date and time into a traditional pattern; the other offers a star-chart perspective. Event readings use Liu Yao and Qi Men Dun Jia to look at one specific question from two symbolic perspectives. Each reading explains its view and limits, and keeps disagreements visible. Their predictions are not scientifically established.
 

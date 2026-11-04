@@ -1,5 +1,11 @@
 # Laoshifu · Una puerta al espíritu vivo de la cultura china
 
+**Si amas la cultura tradicional china, Laoshifu es tu mejor guía hacia sus maravillas vivas.**
+
+El siglo de China ya ha llegado. Cada vez más personas en China se dedican a estudiar y recuperar estas artes antiguas. Tú también puedes dar un primer paso hacia este mundo de sabiduría y leyendas que atraviesa los siglos.
+
+Los relatos, las ideas y las tradiciones que parecían lejanos entre idiomas y libros antiguos pueden empezar hoy con una pregunta tuya.
+
 ## Comprender el momento que estás viviendo
 
 Hay momentos que invitan a avanzar. Otros piden paciencia, cuidado o un cambio de rumbo. Laoshifu te acerca a una tradición china que explora el encuentro entre una persona y un mundo en transformación.
@@ -17,10 +23,16 @@ Estas ideas son el hilo cultural de la experiencia. Una lectura personal puede s
 
 Tu curiosidad basta para comenzar. Puedes explorar la cultura sin compartir datos personales ni adoptar una creencia determinada.
 
+## Raíces antiguas, leyendas vivas
+
+Los escritos chinos ya hablaban del Libro de los Cambios hace más de dos mil años. Su larga transmisión conserva una tradición de observar el cielo y la tierra, y preguntarse cómo una vida humana se encuentra con un mundo cambiante.
+
+En un relato transmitido por esa tradición, el sabio Fuxi mira el cielo, estudia la tierra y los dibujos de aves y animales, y encuentra un orden que los relaciona. La leyenda da a este encuentro una sensación de asombro: una vida bajo un cielo inmenso, dentro de un mundo vivo.
+
 ## Elige por dónde empezar
 
 1. **Explora una idea.** Por ejemplo: «Explica con una historia cotidiana cómo las tradiciones chinas entienden el momento oportuno».
 2. **Mira un ejemplo completo.** Por ejemplo: «Muéstrame el ejemplo fijo del contrato en español». Utiliza datos simulados; no es una lectura sobre ti.
 3. **Pide una lectura tradicional personal.** Dilo expresamente cuando quieras comenzar. Antes de recoger datos, tu IA explicará dónde se guardan los archivos locales, su plazo y cómo limpiarlos, y pedirá tu consentimiento.
 
-El skill de GitHub es gratuito. Tu proveedor de IA puede aplicar sus propias tarifas y reglas de datos. Las interpretaciones tradicionales son una práctica cultural; sus predicciones no están científicamente demostradas.
+El skill de GitHub es gratuito. Tu proveedor de IA puede aplicar sus propias tarifas y reglas de datos.
