@@ -1,3 +1,11 @@
+# 4.4.2 — International free-edition onboarding (2026-11-04)
+
+- English entrypoint with Chinese, Spanish and Portuguese guides and complete translated synthetic previews.
+- Offline --lang previews verify original source files and translation checksums; no case files or payment.
+- Cross-cultural interpretation guidance, explicit intent and localized storage notices preserve the existing private-session workflow.
+- Event offsets accept 15-minute steps; overseas birth times stop on nonexistent or repeated DST hours rather than silently choosing one.
+- Optional tzdata dependency for hosts without an IANA database. Calculation engine remains 4.2.0; audit labels are partly Chinese; no predictive-accuracy claim or new paid checkout.
+
 ## 4.4.1 — 2026-11-03
 
 - 关闭宿主隐式调用，普通事业/感情等建议不自动启动传统测算；同一已开启会谈追问保持自然。

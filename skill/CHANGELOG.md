@@ -1,3 +1,18 @@
+# 4.4.2 — International free-edition onboarding (2026-11-04)
+
+- English entrypoint with Chinese, Spanish and Portuguese guides and complete translated synthetic previews.
+- Offline --lang previews verify original source files and translation checksums; no case files or payment.
+- Cross-cultural interpretation guidance, explicit intent and localized storage notices preserve the existing private-session workflow.
+- Event offsets accept 15-minute steps; overseas birth times stop on nonexistent or repeated DST hours rather than silently choosing one.
+- Optional tzdata dependency for hosts without an IANA database. Calculation engine remains 4.2.0; audit labels are partly Chinese; no predictive-accuracy claim or new paid checkout.
+
+## 4.4.1 — 2026-11-03
+
+- 关闭宿主隐式调用，普通事业/感情等建议不自动启动传统测算；同一已开启会谈追问保持自然。
+- 新增实际私有会谈管理器：本机权限校验、明确保存告知与确认、固定输出位置、默认24小时有效期。
+- 新增清理预览与哈希绑定执行，链接、未知文件、订单状态、忙操作或内容变化时保留报错；不承诺后台自动删除。
+- 保留4.4.0完整模拟示例、双法独立解读与调和，以及引擎4.2.0；未更改算法或付费订单。
+
 ## 4.4.0 — 2026-11-03
 
 - 新增无需提供个人资料的完整模拟出生/合同示例，原始盘面、复核档案及输出随包，可核验来源。
