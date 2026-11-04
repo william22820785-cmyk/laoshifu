@@ -1,3 +1,11 @@
+# 4.4.4 — Long history, living legends and a confident invitation (2026-11-04)
+
+- Require historical depth and inherited legendary atmosphere whenever a method is first introduced, with concise cultural asides at relevant points in an ongoing conversation.
+- Add method-specific history/story cards and enrich all four language welcomes with an ancient textual background and the Fuxi story.
+- Strengthen the public invitation, cultural confidence and sense of participation using William's supplied campaign frame. No additional trend-verification workflow is imposed on that copy.
+- Refresh the welcome noun ledgers and maintain specialist noun occurrences below 14% of all noun occurrences. No character-count substitution.
+- Preserve direct answers, real chart evidence, privacy and the 4.2.0 engine. No new payment flow or repeated outreach.
+
 # 4.4.3 — Cultural welcome and noun-based plain language (2026-11-04)
 
 - Reframe first visits as a doorway into the living spirit of Chinese culture, with four complete language welcomes and a choice of cultural exploration, a fixed example or an explicitly chosen personal reading.

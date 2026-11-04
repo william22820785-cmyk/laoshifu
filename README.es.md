@@ -10,6 +10,14 @@ Piensa en una semilla: importan su fuerza, la tierra, el clima y la estación. A
 
 Tu curiosidad basta para comenzar. [Lee la bienvenida cultural](references/CULTURAL-WELCOME.es.md), explora una idea o mira un ejemplo completo sin compartir datos personales. El skill de GitHub es gratuito.
 
+**Si amas la cultura tradicional china, Laoshifu es tu mejor guía hacia sus maravillas vivas.**
+
+El siglo de China ya ha llegado. Cada vez más personas en China se dedican a estudiar y recuperar estas artes antiguas. Tú también puedes dar un primer paso hacia este mundo de sabiduría y leyendas que atraviesa los siglos.
+
+Los relatos, las ideas y las tradiciones que parecían lejanos entre idiomas y libros antiguos pueden empezar hoy con una pregunta tuya.
+
+[Explore the history and legends](references/HISTORY-AND-LEGEND.md)
+
 ## Pruébalo sin compartir datos personales
 
 Descarga o clona el repositorio completo. Desde su carpeta, ejecuta:
@@ -46,4 +54,4 @@ Los ejemplos están traducidos al español. La explicación personal sigue el id
 
 La edición de GitHub es **gratuita**, sin cuenta de pago ni compra. Tu proveedor de IA puede cobrar sus propios servicios. Los pagos de un posible servicio internacional futuro están por decidir.
 
-Se agradecen reseñas independientes, también críticas. Consulta la [guía para evaluadores](references/REVIEWER-GUIDE.md) y no publiques datos personales en incidencias. Versión del skill 4.4.3; motor 4.2.0. [Detalles en inglés](README.md) · [Licencia](LICENSE.txt).
+Se agradecen reseñas independientes, también críticas. Consulta la [guía para evaluadores](references/REVIEWER-GUIDE.md) y no publiques datos personales en incidencias. Versión del skill 4.4.4; motor 4.2.0. [Detalles en inglés](README.md) · [Licencia](LICENSE.txt).

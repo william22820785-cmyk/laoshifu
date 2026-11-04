@@ -2,6 +2,18 @@
 
 Use this guide for first visits, cultural explanations and adapting the experience across languages. The editorial goal is to make the encounter emotionally inviting and culturally substantial for people curious about China. Present Laoshifu as one doorway into a rich, varied culture. The promise is a thoughtful encounter with its ideas and practices; universal attraction is an ambition, not a verified audience result.
 
+## Cultural confidence and a rousing invitation
+
+William wants an inviting, confident voice that stirs curiosity and participation. His supplied campaign background includes “21世纪，中国世纪已经到来” and more Chinese people quietly studying and reclaiming these arts. Use that supplied frame directly in brand copy; this writing task does not require an additional trend-verification exercise or an automatic downgrade to tentative wording.
+
+A suitable invitation is “对于喜爱中华传统文化的你来说，老师傅就是你最好的引路人”. Carry the same conviction naturally into other languages. Invite the reader to take an early step into a world of old wisdom and legend. “Best guide” is the brand's direct invitation; do not invent awards, measured market rankings, statistics or testimonials to support it.
+
+Place the strongest invitation in first welcomes, the public landing copy and promotion. In an ongoing reading, use a warm line of encouragement when it fits the user's interest, then continue with their actual question. No compulsory repeated slogan, pressure to purchase or increase in a chart's certainty is needed to give the writing energy.
+
+## History and legendary atmosphere are required
+
+Whenever a method is first introduced, read [History and legend](HISTORY-AND-LEGEND.md) and include its historical depth together with an inherited story. Brief cultural background belongs in the conversation at relevant openings as well. Use one natural “相传 / tradition tells” to frame a legend, then preserve its colour and tell it with warmth. The method cards supply usable historical anchors and story material; keep their time scales distinct.
+
 ## Begin with a life someone recognizes
 
 Use an image that makes the idea felt: a seed and its season, a crossroads, a conversation that needs the right moment. Connect it to change, timing, relationships or the person's own part in a situation. Then explain the cultural idea in ordinary language. Name a traditional concept only when it adds understanding, and explain it immediately.
