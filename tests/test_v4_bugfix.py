@@ -45,7 +45,7 @@ def test_portable_fusion_from_foreign_cwd():
             "--year=2026", "--month=8", "--day=29", "--hour=15", "--minute=0",
             "--timeZone=8", f"--output={output}", cwd=Path.cwd())
         data = json.loads(output.read_text(encoding="utf-8"))
-        assert data["schemaVersion"] == "aceworld-liuyao-qimen-fusion.v2"
+        assert data["schemaVersion"] == "aceworld-liuyao-qimen-fusion.v3"
         assert data["question"]["text"] == question
         assert data["methods"]["liuyao"]["本卦"]
         assert data["methods"]["qimen"]["局数"]

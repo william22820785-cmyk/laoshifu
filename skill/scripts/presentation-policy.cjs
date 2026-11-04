@@ -1,6 +1,6 @@
 /** V4.1 public explanation contract: source facts, plain-language gloss, no scoring dump. */
 const fs = require('node:fs');
-const INTERNAL_TERMS = ['evidence','sourcePath','sourceValue','schemaVersion','内部等级','算法版本','融合权重','加权评分','推断链','推断结构','skill-root','consultation-plan','chart.json','fusion.json','后台评分','九宫格'];
+const INTERNAL_TERMS = ['evidence_ids','sourcePath','sourceValue','schemaVersion','内部等级','算法版本','融合权重','加权评分','推断链','推断结构','skill-root','consultation-plan','chart.json','fusion.json','后台评分','九宫格'];
 const UNSUPPORTED_PROMISES = ['保证准确','百分之百准确','保证应验','百算百准','稳赚不赔','包你发财','必有灾祸','不买就会倒霉'];
 const GLOSSARY_TERMS = ['日主','十神','旺衰','用神','忌神','喜用','官禄宫','夫妻宫','命宫','四化','化禄','化忌','世爻','应爻','父母爻','官鬼爻','妻财爻','动爻','空亡','回头生','回头克','伏神','值符','值使','生门','开门'];
 const LIMITS = {brief:650,standard:1800,deep:3600};
@@ -14,6 +14,7 @@ function args(argv=process.argv.slice(2)) {
 }
 function textIssues(text,detail='standard') {
  const errors=[];
+ if(/["']?\bevidence["']?\s*[:=]\s*[\[{]/i.test(text))errors.push('泄露内部实现: evidence field');
  if(!(detail in LIMITS))return ['detail 必须是 brief|standard|deep'];
  if(!text.trim())errors.push('答复不能为空');
  if([...text].length>LIMITS[detail])errors.push(`答复超过 ${detail} 上限 ${LIMITS[detail]} 字符`);
