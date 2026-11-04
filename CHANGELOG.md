@@ -1,3 +1,12 @@
+# 4.4.3 — Cultural welcome and noun-based plain language (2026-11-04)
+
+- Reframe first visits as a doorway into the living spirit of Chinese culture, with four complete language welcomes and a choice of cultural exploration, a fixed example or an explicitly chosen personal reading.
+- Lead with everyday situations and culturally grounded explanations; answer an existing personal question directly instead of repeating a welcome speech.
+- Specialist noun occurrences must be below 14% of all noun occurrences. Reviewed noun annotations bind to the final prose; adjectives and other words do not dilute the denominator. The checker verifies spans, known-term coverage and arithmetic, while noun classification remains a language-review responsibility.
+- Current delivery commands pass language/noun-audit arguments. Old validators remain available for historical recovery; no character-ratio substitute establishes compliance.
+- Default fixed previews show the complete explanation in plain language. Original chart data and six-line source remain inspectable in the same verified bundle; actual personal readings retain the verified original diagram.
+- Engine remains 4.2.0. No new billing flow or repeated outreach.
+
 # 4.4.2 — International free-edition onboarding (2026-11-04)
 
 - English entrypoint with Chinese, Spanish and Portuguese guides and complete translated synthetic previews.

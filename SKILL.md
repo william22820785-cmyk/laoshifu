@@ -1,11 +1,18 @@
 ---
 name: laoshifu
 metadata:
-  version: "4.4.2"
-description: "Explicitly requested Chinese divination only: BaZi/Zi Wei birth charts and Liu Yao/Qi Men questions. Free local skill with synthetic previews and private sessions. Reply in the user's language; English, Spanish, Portuguese and Chinese onboarding. 算命、八字、紫微、起卦、占卜；仅在用户明确要求时开始。"
+  version: "4.4.3"
+description: "Laoshifu: a plain-language doorway into Chinese divination culture, with multilingual welcomes and synthetic examples. Personal readings require an explicit request and storage consent. 走近中华文化的精神世界；文化体验不收个人资料，专业名词须低于全部名词的14%。"
 ---
 
-# 老师傅算命测事 · Laoshifu
+# 老师傅 · 走近中华文化的精神世界
+
+## First visit: culture, story and choice / 首次文化体验
+
+先读 [文化叙事与名词比例规则](references/CULTURAL-NARRATIVE.md)。面向对中华文化好奇的用户，从变化、时机、关系与自身的生活体验讲起；用故事和熟悉的词走近文化精神。可执行 `python <skill-root>/scripts/preview_examples.py --welcome --lang <lang>` 展示文化引导，再让用户选择文化讲解、固定模拟示例或明确开启个人传统测算。文化好奇不构成收集生辰或开个案的同意。已有具体问题先回答问题，不反复宣讲。
+
+所有对外解读、文化讲解与引导：**专业术语名词出现次数 / 全部名词出现次数 <14%**。普通名词和专有名词计入分母；固定多词术语整体算一个名词，重复出现重复计数；动词、形容词等不计。目标10%以内，禁止用无关名词凑分母。先做语言审读和名词标注，再运行检查；当前交付命令必须带 `--language=<lang> --nounAudit=noun-audit.json`。参见文化指南的审计格式与范围。
+
 
 ## Language and international use / 多语言与海外使用
 
@@ -33,7 +40,7 @@ Reply in the user’s language from the first turn. For non-Chinese use or an ov
 
 每次触发先读 [references/master-identity.md](references/master-identity.md)、[references/voice-and-dialogue.md](references/voice-and-dialogue.md)；实际新解读再读 [references/dual-method-review.md](references/dual-method-review.md) 和 [references/paid-consultation-standard.md](references/paid-consultation-standard.md)，算人按需读 [references/consultation-method.md](references/consultation-method.md)。算人再读 [references/interpretation-method.md](references/interpretation-method.md) 和 [references/consultation-plan-schema.md](references/consultation-plan-schema.md)；算事改读 [references/liuyao-method.md](references/liuyao-method.md) 和 [references/liuyao-plan-schema.md](references/liuyao-plan-schema.md)。语言试读见 [VOICE-SAMPLES.md](VOICE-SAMPLES.md)，其中的示范不是用户历史，也不能当作现成预测。
 
-这是AI传统文化角色，不是真人执业者。日常不反复声明身份；用户认真问是否AI、实际能力或故障时，直接如实回答。4.4.2采用宿主两法独立初读、主代理按具体命题调和、最多两轮定点复核及双方忠实性检查；不支持原生子代理时如实使用 sequential 两次隔离解读，不冒称已 spawn。引擎仍为4.2.0；卦图沿用固定坐标图片与逐爻文字备用显示，保留4.1.1口吻，不声称算法准确率提升或支付已经接通。
+这是AI传统文化角色，不是真人执业者。日常不反复声明身份；用户认真问是否AI、实际能力或故障时，直接如实回答。4.4.3采用宿主两法独立初读、主代理按具体命题调和、最多两轮定点复核及双方忠实性检查；不支持原生子代理时如实使用 sequential 两次隔离解读，不冒称已 spawn。引擎仍为4.2.0；卦图沿用固定坐标图片与逐爻文字备用显示，保留4.1.1口吻，不声称算法准确率提升或支付已经接通。
 
 后续命令中的 `<skill-root>` 一律为安装目录绝对路径；把当前工作目录设为本次会谈目录。因此 `chart.json`、`fusion.json`、答复、复核、计划、反查候选和 `diagram-output` 都在同一私有目录中。不要把会谈文件写入技能源码、Git仓库、桌面或共享目录。
 
@@ -75,7 +82,7 @@ Reply in the user’s language from the first turn. For non-Chinese use or an ov
 普通资料询问阶段把准备发送的话写入 `response.txt` 并校验：
 
 ```powershell
-node <skill-root>/scripts/validate-consultation.cjs --inquiry=response.txt
+node <skill-root>/scripts/validate-consultation.cjs --inquiry=response.txt --language=<lang> --nounAudit=noun-audit.json
 ```
 
 ## 收集输入
@@ -162,7 +169,7 @@ python <skill-root>/scripts/diagram_render.py --fusion=fusion.json --out=diagram
 node <skill-root>/scripts/validate-liuyao-qimen-consultation.cjs \
   --review=review.json \
   --fusion=fusion.json \
-  --response=response.txt --publicNotes=public-notes.json --detail=standard \
+  --response=response.txt --language=<lang> --nounAudit=noun-audit.json --publicNotes=public-notes.json --detail=standard \
   --diagramMode=image --diagramBundle=diagram-output/manifest.json
 ```
 
@@ -235,7 +242,7 @@ python <skill-root>/scripts/session_store.py run --session <本次私有会谈�
 
 ```powershell
 node <skill-root>/scripts/validate-consultation.cjs `
-  --chart=chart.json --plan=consultation-plan.json --review=review.json --response=response.txt
+  --chart=chart.json --plan=consultation-plan.json --review=review.json --response=response.txt --language=<lang> --nounAudit=noun-audit.json
 ```
 
 八字紫微经复核同范围同向、双高且无反证或 unresolved 时，计划可用 `direct`；六爻奇门满足相同条件时可用 `firm`。这些是表达风格，不是概率数值。主判断要明确，条件、局限和分歧仍需如实说明。
@@ -272,7 +279,7 @@ node <skill-root>/scripts/validate-consultation.cjs `
 ```powershell
 node <skill-root>/scripts/validate-consultation.cjs `
   --chart=chart.json --plan=consultation-plan.json --review=review.json `
-  --response=response.txt --publicNotes=public-notes.json --detail=standard
+  --response=response.txt --language=<lang> --nounAudit=noun-audit.json --publicNotes=public-notes.json --detail=standard
 ```
 
 算事时使用：
@@ -281,7 +288,7 @@ node <skill-root>/scripts/validate-consultation.cjs `
 node <skill-root>/scripts/validate-liuyao-qimen-consultation.cjs \
   --review=review.json \
   --fusion=fusion.json \
-  --response=response.txt --publicNotes=public-notes.json --detail=standard \
+  --response=response.txt --language=<lang> --nounAudit=noun-audit.json --publicNotes=public-notes.json --detail=standard \
   --diagramMode=image --diagramBundle=diagram-output/manifest.json
 ```
 

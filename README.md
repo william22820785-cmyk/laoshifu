@@ -1,10 +1,14 @@
-# Laoshifu · Chinese divination for your AI agent
+# Laoshifu · A doorway into the living spirit of Chinese culture
 
 [中文](README.zh-CN.md) · [Español](README.es.md) · [Português](README.pt-BR.md)
 
-A free, local agent skill for exploring traditional Chinese birth charts and I Ching questions. Start with a complete synthetic example: this skill requires no birth details, account or payment for the preview.
+**Understand the season you are in.**
 
-Laoshifu combines **BaZi + Zi Wei Dou Shu** for birth readings, or **Liu Yao + Qi Men Dun Jia** for a specific question. The methods are read separately and reconciled, with disagreements and missing evidence kept visible. These are traditional interpretations, not scientifically established predictions.
+Some moments invite a step forward. Others call for patience, care, or a change of direction. Laoshifu welcomes you into a Chinese tradition of exploring how a person and a changing world meet: your character, your relationships, and the possibilities of this moment.
+
+Begin with the image of a seed. Its strength matters, and so do the soil, the weather, and the season. Through stories, cultural explanations and traditional readings, you can explore a way of attending to life that holds the person and their circumstances together.
+
+Your curiosity is enough to start. [Read the cultural welcome](references/CULTURAL-WELCOME.en.md), explore an idea, or try a complete synthetic example before sharing personal details. The GitHub skill is free.
 
 ## Try it before sharing anything personal
 
@@ -13,10 +17,10 @@ Download or clone the repository and run a fixed preview from its directory:
 ```sh
 git clone https://github.com/william22820785-cmyk/laoshifu.git
 cd laoshifu
-python scripts/preview_examples.py --example contract --lang en
+python scripts/preview_examples.py --welcome --lang en
 ```
 
-Use `--example birth` for the birth example, or `--list` to list both. Use `--lang es`, `--lang pt-BR` or `--lang zh` for the other shipped translations. A preview needs only Python; personal chart calculation also needs Node.js and a compatible agent. Use `python3` if that is your system's Python command.
+Then choose `--example contract` or `--example birth` for a fixed example; `--list` lists both. Use `--lang es`, `--lang pt-BR` or `--lang zh` for the other shipped translations. A preview needs only Python; personal chart calculation also needs Node.js and a compatible agent. Use `python3` if that is your system's Python command.
 
 The examples are **fixed synthetic cases**, not customer testimonials. The translated previews verify both their source chart/review bundle and their translation checksums. They do not collect input, create a personal session, call a network service or start a payment.
 
@@ -26,7 +30,7 @@ Use a local agent that can load a `SKILL.md` skill and execute Python and Node.j
 
 Start with this explicit prompt:
 
-> Use Laoshifu from this folder's SKILL.md. Reply in English. Show the fixed contract example with --lang en first. Do not ask for my birth details or start a personal session for this preview.
+> Use Laoshifu from this folder's SKILL.md. Reply in English. Start with the cultural welcome using --welcome --lang en. Let me choose a cultural idea, a fixed example, or a personal reading. Do not ask for birth details or start a case for the cultural welcome.
 
 If you choose a personal reading later:
 
@@ -56,4 +60,10 @@ Try the birth and contract previews, compare two languages, then inspect the inp
 
 **The GitHub edition is free.** It has no checkout, payment key or paid account requirement. Your AI host may charge its own model or subscription fees. Overseas payment options for a future paid service are undecided and do not affect access to this edition.
 
-Skill release: **4.4.2**. Chart engine: **4.2.0**; this update improves localization and input handling, without claiming better predictive accuracy. See [changes](CHANGELOG.md), [Chinese usage details](references/TRY-IT.md), [cross-cultural rules](references/INTERNATIONAL.md), and [license](LICENSE.txt).
+Skill release: **4.4.3**. Chart engine: **4.2.0**; this update improves localization and input handling, without claiming better predictive accuracy. See [changes](CHANGELOG.md), [Chinese usage details](references/TRY-IT.md), [cross-cultural rules](references/INTERNATIONAL.md), and [license](LICENSE.txt).
+
+## If you would like the traditional method names
+
+Birth readings use BaZi and Zi Wei Dou Shu. One organizes a birth date and time into a traditional pattern; the other offers a star-chart perspective. Event readings use Liu Yao and Qi Men Dun Jia to look at one specific question from two symbolic perspectives. Each reading explains its view and limits, and keeps disagreements visible. Their predictions are not scientifically established.
+
+The [cultural guide](references/CULTURAL-NARRATIVE.md) explains how stories and classical ideas enter the experience. Public explanations keep specialist noun mentions below 14% of all noun mentions, with reviewed annotations and reproducible counting.

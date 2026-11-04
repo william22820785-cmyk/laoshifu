@@ -1,6 +1,6 @@
 interface:
-  display_name: "Laoshifu · 老师傅"
-  short_description: "Chinese divination with local charts and multilingual previews."
-  default_prompt: "Use $laoshifu. Reply in my preferred conversation language. I explicitly want a traditional Chinese divination reading. Listen to my question first; ask only for missing details, explain local storage before collecting personal data, calculate the real charts and explain the reasoning and uncertainty. Do not invent charts or promise an outcome."
+  display_name: "Laoshifu · Chinese culture and life"
+  short_description: "Explore Chinese culture through stories and personal readings."
+  default_prompt: "Use $laoshifu. Reply in my preferred language. Start with the cultural welcome: help me explore Chinese views of change, timing and relationships through an everyday story. Let me choose whether to see a fixed example or explicitly request a personal reading. Keep specialist nouns below 14% of all noun occurrences."
 policy:
   allow_implicit_invocation: false

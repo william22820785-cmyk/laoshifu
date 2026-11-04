@@ -1,7 +1,9 @@
-# 算命老师傅 · 免费本地版4.4.0
+# Laoshifu · A doorway into the living spirit of Chinese culture
 
-八字与紫微看人，六爻与奇门问事。可以先看两份完整模拟示例，无需提供个人资料；想问自己时再核对资料、真实排盘，按双法复核给出具体解释。
+**Understand the season you are in.** Explore change, timing, relationships and your own part in life's unfolding through welcoming stories and traditional readings. Start in your language, with no personal details needed for cultural exploration or fixed examples.
 
-[完整示例、两版区别与安装入口](references/TRY-IT.md)
+[Begin with the cultural welcome](references/CULTURAL-WELCOME.en.md) · [中文](references/CULTURAL-WELCOME.zh.md) · [Español](references/CULTURAL-WELCOME.es.md) · [Português](references/CULTURAL-WELCOME.pt.md)
 
-引擎仍4.2.0，需兼容的Agent、Python和Node.js。模拟示例不是客户应验或准确率证据，正式问题不能照搬示例。本免费包不包含托管结算组件。
+Free local skill 4.4.3; chart engine 4.2.0. A personal reading begins only after your explicit request and agreement to the actual local storage notice. The default session expires after 24 hours; cleanup requires a preview and confirmation. Your agent may have its own fees and data rules.
+
+The cultural guide keeps unfamiliar terminology light: specialist noun occurrences must be below 14% of all noun occurrences, based on reviewed annotations. Traditional readings explain their reasoning and uncertainty; their predictive accuracy is not scientifically established.
